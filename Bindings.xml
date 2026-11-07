@@ -1,0 +1,5 @@
+<Bindings>
+	<Binding name="YOURLEGACY_TOGGLE" header="YOURLEGACY" category="ADDONS">
+		YourLegacy_Toggle()
+	</Binding>
+</Bindings>
