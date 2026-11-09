@@ -277,12 +277,114 @@ function ns.Tree.DeleteBuild(index)
 	UI:Refresh()
 end
 
+---------------------------------------------------------------- sharing (1.0)
+-- A build as text: "!YL1!" + "nodeID.rank" pairs joined by commas + "!" + the name. Our own format; node IDs are
+-- the game's, so a string works on every client language. Imported text is untrusted: a length cap, pattern
+-- parsing only, and every node checked against the live trees (exists, visible, rank within its max, total
+-- within the cap) before anything is saved.
+local SHARE_PREFIX, SHARE_MAX_LEN, NAME_MAX = "!YL1!", 600, 32
+
+local function CleanName(name)
+	name = tostring(name or ""):gsub("|", ""):gsub("%c", "")
+	return strtrim(name):sub(1, NAME_MAX)
+end
+
+function ns.Tree.Encode(perks, name)
+	local ids = {}
+	for id, r in pairs(perks or {}) do
+		id, r = tonumber(id), tonumber(r)
+		if id and r and r > 0 then ids[#ids + 1] = id end
+	end
+	if #ids == 0 then return nil end
+	table.sort(ids)
+	local pairs_ = {}
+	for i, id in ipairs(ids) do pairs_[i] = id .. "." .. (tonumber(perks[id]) or tonumber(perks[tostring(id)])) end
+	return SHARE_PREFIX .. table.concat(pairs_, ",") .. "!" .. CleanName(name)
+end
+
+-- Returns perks, name on success; nil, a message for the player otherwise.
+function ns.Tree.Decode(text)
+	text = strtrim(tostring(text or ""))
+	if #text > SHARE_MAX_LEN then return nil, L["That text is too long to be a build."] end
+	local body, name = text:match("^!YL1!([%d.,]+)!(.*)$")
+	if not body then return nil, L["That isn't a Your Legacy build. Builds start with !YL1!"] end
+	local known = {}
+	for _, t in ipairs(Live.Trees()) do
+		for _, n in ipairs(t.nodes) do if not n.unnamed then known[n.id] = n.maxRanks or 1 end end
+	end
+	if not next(known) then return nil, L["The Legacy trees haven't loaded yet. Try again in a moment."] end
+	local perks, total = {}, 0
+	for entry in body:gmatch("[^,]+") do
+		local id, rank = entry:match("^(%d+)%.(%d+)$")
+		id, rank = tonumber(id), tonumber(rank)
+		if not (id and rank) then return nil, L["That build is damaged. Copy it again."] end
+		if not known[id] then return nil, L["That build has a perk this game doesn't have."] end
+		if rank < 1 or rank > known[id] or perks[id] then return nil, L["That build has a rank above what its perk allows."] end
+		perks[id], total = rank, total + rank
+	end
+	if total == 0 then return nil, L["That build is empty."] end
+	if total > Data.SPEND_CAP then return nil, string.format(L["That build needs %d points; a character can spend %d."], total, Data.SPEND_CAP) end
+	return perks, CleanName(name)
+end
+
+-- Saves an imported build (a free name: "Name (2)" when taken) and loads it into the shown character's plan.
+function ns.Tree.Import(text)
+	local perks, nameOrError = ns.Tree.Decode(text)
+	if not perks then
+		ns.Core:Print(nameOrError)
+		return false
+	end
+	local base = nameOrError ~= "" and nameOrError or L["Imported build"]
+	local name, n = base, 1
+	local function taken(s) for _, b in ipairs(db().builds) do if b.name == s then return true end end end
+	while taken(name) do
+		n = n + 1
+		name = string.format("%s (%d)", base:sub(1, NAME_MAX - 5), n)
+	end
+	table.insert(db().builds, { name = name, perks = Copy(perks) })
+	db().plans[TreeCharacter()] = Copy(perks)
+	ns.Core:Print(string.format(L["Imported \"%s\" and loaded it into the plan."], name))
+	UI:Refresh()
+	return true
+end
+
+StaticPopupDialogs.YOURLEGACY_IMPORT_BUILD = {
+	text = L["Paste a build someone shared with you. It's saved under My builds and loaded into this plan."],
+	button1 = L["Import"], button2 = CANCEL or "Cancel",
+	hasEditBox = true, maxLetters = SHARE_MAX_LEN, editBoxWidth = 360,
+	OnAccept = function(self)
+		local box = self and (self.editBox or (self.GetEditBox and self:GetEditBox()))
+		ns.Tree.Import(box and box:GetText() or "")
+	end,
+	EditBoxOnEnterPressed = function(self)
+		ns.Tree.Import(self:GetText() or "")
+		StaticPopup_Hide("YOURLEGACY_IMPORT_BUILD")
+	end,
+	EditBoxOnEscapePressed = function() StaticPopup_Hide("YOURLEGACY_IMPORT_BUILD") end,
+	timeout = 0, whileDead = true, hideOnEscape = true,
+}
+
+-- The plan as a share string, named after the build it matches, else the character.
+function ns.Tree.ShareText()
+	local key = TreeCharacter()
+	local plan = db().plans[key]
+	if type(plan) ~= "table" or PlanTotal(plan) == 0 then return nil end
+	local name
+	for _, b in ipairs(db().builds) do if not name and Same(plan, Copy(b.perks)) then name = b.name end end
+	local who = db().characters[key]
+	name = name or (who and who.name and string.format(L["%s's build"], who.name)) or ""
+	return ns.Tree.Encode(plan, name)
+end
+
 local function BuildOptions()
 	local out = {}
 	for i, b in ipairs(db().builds) do
 		out[#out + 1] = { i, string.format("%s  %s", b.name, T.Hex(C.muted) .. string.format(L["%d points"], PlanTotal(b.perks)) .. "|r"), deletable = true }
 	end
 	if #out == 0 then out[1] = { 0, T.Hex(C.muted) .. L["Save a plan to keep it here."] .. "|r" } end
+	-- 1.0: sharing, at the end of the list as Blizzard's loadout menu has Import
+	if ns.Tree.ShareText() then out[#out + 1] = { "share", T.Hex(C.head) .. L["Share this plan..."] .. "|r" } end
+	out[#out + 1] = { "import", T.Hex(C.head) .. L["Import a build..."] .. "|r" }
 	return out
 end
 
@@ -368,6 +470,18 @@ local function BuildTree(page)
 	end
 	local x = #Data.PRESETS * (PRESET_W + 6) + 10
 	tree.builds = T.Dropdown(body, 190, BuildOptions, function(index)
+		if index == "share" then
+			local text = ns.Tree.ShareText()
+			if text and ns.Export then
+				ns.Export:ShowText(L["Share this plan"], L["The text is selected. Press Ctrl+C to copy it. Anyone with Your Legacy can paste it with Import a build on the Legacy Tree page."], text)
+			end
+			UI:Refresh() -- the list goes back to showing the build the plan matches
+			return
+		elseif index == "import" then
+			StaticPopup_Show("YOURLEGACY_IMPORT_BUILD")
+			UI:Refresh()
+			return
+		end
 		local b = db().builds[index]
 		if not b then return end
 		db().plans[TreeCharacter()] = Copy(b.perks)
@@ -472,7 +586,7 @@ local function RefreshTree()
 	local _, wasted = P.DeadPerks(plan or current, level)
 	if wasted > 0 then
 		-- ranks (planned, else learned) in perks that no longer help at this character's level
-		tree.summary:SetText(string.format(L["%d points sit in perks that no longer help at level %d."], wasted, level))
+		tree.summary:SetText(string.format(L["%d points sit in perks that no longer help at level %d."], wasted, level) .. P.RuleTag("deadPerks"))
 		tree.summary:SetTextColor(T.unpack(C.warn))
 	elseif not plan then
 		tree.summary:SetText(string.format(L["No plan for %s yet. Load a build or click perks."], who))

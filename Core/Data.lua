@@ -124,6 +124,34 @@ Data.DEAD_PERKS = {
 	[110301] = { level = 60, why = "No experience to rest for at level 60." },           -- Well Rested: rested XP accrues faster, cap higher
 	[110298] = { level = 60, why = "Talent points reach the same 51 at level 60." },     -- Talented: talents from level 5 instead of 10, max 51 still
 }
+-- 1.0: the Legacy rules the ledger relies on, each with how sure we are, shown to players (tooltips and
+-- Options > How Legacy works). confirmed = the game or Blizzard shows it; reported = guides and players say so,
+-- not yet proven in game; unchecked = nobody has tested it. Update a status (and RULES_DATE) when an in-game
+-- check settles it (research/17-v09-feedback-features.md has the checklist).
+Data.RULES_DATE = "2026-11-09"
+Data.RULES = {
+	{ key = "once", status = "confirmed", text = "A challenge is earned once for the whole account.",
+		source = "Every challenge carries the game's account flag." },
+	{ key = "reach", status = "confirmed", text = "A level or skill challenge needs one character to reach the number.",
+		source = "The challenge's own description." },
+	{ key = "explore", status = "confirmed", text = "Exploring counts per character: one character has to find every area.",
+		source = "Compared on two characters in game." },
+	{ key = "cap", status = "confirmed", text = "A character can spend up to 16 Legacy points.",
+		source = "Blizzard's Legacy System announcement." },
+	{ key = "allParts", status = "reported", text = "A challenge with a list needs every part on it.",
+		source = "Guides and players. Not tested in game yet." },
+	{ key = "deadPerks", status = "reported", text = "Well Rested and Talented stop helping at level 60.",
+		source = "How the perks are described. Not tested in game yet." },
+	{ key = "reset", status = "reported", text = "Unlearning perks happens at a class trainer and costs gold.",
+		source = "Guides and beta players. Not tested in game yet." },
+	{ key = "hardcore", status = "reported", text = "Hardcore challenges count everywhere; Normal ones don't count on Hardcore.",
+		source = "Guides. Hardcore isn't out yet." },
+	{ key = "outlevel", status = "unchecked", text = "A dungeon cleared above its bracket's top level may not count.",
+		source = "Nobody has tested it, so Your Legacy doesn't warn about it yet." },
+}
+Data.RULE_BY_KEY = {}
+for _, r in ipairs(Data.RULES) do Data.RULE_BY_KEY[r.key] = r end
+
 -- UNVERIFIED: whether ranks can be reset in the Legacy panel without a trainer or a cost. Blizzard_LegacyTree.lua has
 -- a reset button (C_Traits.ResetTree, a whole tree, staged until Apply); guides say a respec happens at a class
 -- trainer for a cost that climbs. Off: the copy says the ranks no longer help and promises no reset. In-game check 2.

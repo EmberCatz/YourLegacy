@@ -78,10 +78,12 @@ function Minimap_:Create()
 	if self.button or self.icon or not Minimap then return end
 	local ldb = Library("LibDataBroker-1.1")
 	if ldb and not self.broker then
+		-- 1.0: a data source (text for Titan Panel, ElvUI, Bazooka bars); LibDBIcon shows data sources as buttons too
 		self.broker = ldb:NewDataObject("YourLegacy", {
-			type = "launcher", label = "Your Legacy", icon = T.MEDIA .. "Icon",
+			type = "data source", label = "Your Legacy", text = "", icon = T.MEDIA .. "Icon",
 			OnClick = Click, OnTooltipShow = Tooltip,
 		})
+		self:UpdateText()
 	end
 	local dbicon = Library("LibDBIcon-1.0")
 	if dbicon and self.broker then
@@ -116,3 +118,18 @@ function Minimap_:ResetPosition()
 end
 
 function Minimap_:UsesLibrary() return self.icon ~= nil end
+
+-- The broker's text: "34/65, next reward in 2" (or "34/65" with every reward unlocked). Set on each refresh;
+-- LibDataBroker tells the display addons when it changes. Nothing to do without LibDataBroker.
+function Minimap_:UpdateText()
+	if not self.broker then return end
+	local earned = Live.Earned()
+	local text = string.format("%d/%d", earned, math.max(Live.MaxAvailable(), Live.Challenges().total))
+	for _, r in ipairs(Live.Rewards()) do
+		if earned < r.level then
+			text = text .. ", " .. string.format(ns.L["next reward in %d"], r.level - earned)
+			break
+		end
+	end
+	if self.broker.text ~= text then self.broker.text = text end
+end

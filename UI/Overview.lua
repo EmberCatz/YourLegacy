@@ -1,4 +1,4 @@
--- Overview (0.9): the points in Blizzard's Legacy shield, the reward track (click a reward to preview it), four
+-- Overview (0.9): the points on the Legacy emblem (1.0; was Blizzard's shield), the reward track (click a reward to preview it), four
 -- figures, then "Closest to done" and "Sections" (a click opens that section's tab in Challenges).
 -- Goal / Maybe / Skip is gone (research/17-v09-brief.md #8).
 local _, ns = ...
@@ -16,9 +16,9 @@ local TRACK_W = W - 32 - TRACK_X
 local LOWER_H = UI.CONTENT_H - TOP_H - GAP
 local LEFT_W = math.floor((W - GAP) / 2)
 local RIGHT_W = W - GAP - LEFT_W
--- UI-Legacy-Points-icon-c60 is 50x73 in the client. 0.9.1: drawn at 1.2x its own size and proportions (it was
--- blown up to 92x134 and looked smeared), with the number where Blizzard puts it (LegacyPointShield: 59% down).
-local SHIELD_W, SHIELD_H = 60, 88
+-- 1.0: the points sit on the addon's own emblem (media/ui/LegacyPoints, the user's painted orb in a gold compass
+-- frame, 128px TGA). Square, so it keeps its proportions; the number in the middle of the orb.
+local EMBLEM = 112
 
 -- A figure in the ruled row: a label, the number, and (Next reward only) a note. A 1px rule on its left.
 local function Figure(parent, width)
@@ -63,15 +63,15 @@ local function BuildOverview(page)
 	overview.top = top
 	local body = top.body
 
-	-- the points in Blizzard's Legacy shield (UI-Legacy-Points-icon), as the Legacy panel's progress track shows them
+	-- the points on the Legacy emblem
 	overview.number = CreateFrame("Frame", nil, body)
-	overview.number:SetSize(SHIELD_W, SHIELD_H)
-	overview.number:SetPoint("TOP", body, "TOPLEFT", LEAD_W / 2, -8)
+	overview.number:SetSize(EMBLEM, EMBLEM)
+	overview.number:SetPoint("TOP", body, "TOPLEFT", LEAD_W / 2, -2)
 	overview.shield = overview.number:CreateTexture(nil, "ARTWORK")
 	overview.shield:SetAllPoints()
-	if not T.Atlas(overview.shield, "UI-Legacy-Points-icon-c60") then overview.shield:SetTexture(T.MEDIA .. "Logo") end
+	overview.shield:SetTexture(T.Path("LegacyPoints"))
 	overview.points = T.Text(overview.number, T.F.shield, C.ink, "CENTER")
-	overview.points:SetPoint("CENTER", 0, -8)
+	overview.points:SetPoint("CENTER", 0, 0)
 	overview.ringLabel = T.Text(body, T.F.large, C.head, "CENTER")
 	overview.ringLabel:SetPoint("TOP", overview.number, "BOTTOM", 0, -8)
 	overview.ringLabel:SetText(L["Legacy points"])

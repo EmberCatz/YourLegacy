@@ -65,7 +65,7 @@ local FONT_OBJECTS = { -- name -> size
 	YourLegacyFontBrand = 12, YourLegacyFontTitle = 14, YourLegacyFontHuge = 32, YourLegacyFontBig = 20,
 	YourLegacyFontMid = 16, YourLegacyFontNumber = 12, YourLegacyFontName = 13, YourLegacyFontTab = 12,
 	YourLegacyFontLabel = 11, YourLegacyFontBody = 12, YourLegacyFontBodyLarge = 13, YourLegacyFontSmall = 11,
-	YourLegacyFontLarge = 14, YourLegacyFontShield = 24, YourLegacyFontTiny = 10,
+	YourLegacyFontLarge = 14, YourLegacyFontShield = 32, YourLegacyFontTiny = 10,
 }
 for name, size in pairs(FONT_OBJECTS) do
 	local f = CreateFont(name)

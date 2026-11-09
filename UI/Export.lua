@@ -66,13 +66,14 @@ local function Build()
 
 	local heading = T.Heading(f, L["Export"], W - 48)
 	heading:SetPoint("TOPLEFT", 24, -20)
+	f.heading = heading
 	local close = T.IconButton(f, "Close", 16, L["Close"])
 	close:SetPoint("TOPRIGHT", -18, -20)
 	close:SetScript("OnClick", function() f:Hide() end)
 	local help = T.Text(f, T.F.body, C.parch)
 	help:SetPoint("TOPLEFT", heading, "BOTTOMLEFT", 4, -10)
 	help:SetWidth(W - 56)
-	help:SetText(L["The text is selected. Press Ctrl+C to copy it, then press Ctrl+V on the Your Legacy dashboard page."])
+	f.help = help
 
 	local well = CreateFrame("Frame", nil, f)
 	well:SetPoint("TOPLEFT", help, "BOTTOMLEFT", -4, -12)
@@ -107,12 +108,20 @@ local function Build()
 	return f
 end
 
-function Export:Show()
+-- The copy window with any text (1.0: also the build share string). f.json is the text it restores to.
+function Export:ShowText(title, help, text)
 	self.frame = self.frame or Build()
 	local f = self.frame
-	f.json = Export.Encode(Live.Export(ns.Core.db))
-	f.box:SetText(f.json)
+	f.heading.text:SetText(title)
+	f.help:SetText(help)
+	f.json = text
+	f.box:SetText(text)
 	f:Show()
 	f.box:SetFocus()
 	f.box:HighlightText()
+end
+
+function Export:Show()
+	self:ShowText(L["Export"], L["The text is selected. Press Ctrl+C to copy it and keep it somewhere safe as a backup."],
+		Export.Encode(Live.Export(ns.Core.db)))
 end

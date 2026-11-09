@@ -232,6 +232,10 @@ function UI:Create()
 		x = x + tab:GetWidth() + 4
 		tab:SetScript("OnClick", function() UI:Show(key) end)
 		tab.key = key
+		tab.baseW = tab:GetWidth()
+		-- 1.0: a count beside the label (UI:SetTabBadge), e.g. the Tree's unspent points
+		tab.badge = T.Text(tab, T.F.name, C.warn, "LEFT")
+		tab.badge:SetPoint("LEFT", tab.Label, "RIGHT", 6, 0)
 		self.tabs[key] = tab
 	end
 	local opts = T.BoxTab(f, ns.L["Options"], T.F.large)
@@ -297,9 +301,27 @@ function UI:Toggle(key)
 	end
 end
 
+-- A count beside a page tab's label ("" or nil clears it); the tabs after it move along.
+function UI:SetTabBadge(key, text)
+	local tab = self.tabs and self.tabs[key]
+	if not (tab and tab.badge) or (tab.badge:GetText() or "") == (text or "") then return end
+	tab.badge:SetText(text or "")
+	local x = 72
+	for _, k in ipairs(self.order) do
+		local t = self.tabs[k]
+		local extra = (t.badge:GetText() or "") ~= "" and (t.badge:GetStringWidth() + 6) or 0
+		t:SetWidth(t.baseW + extra)
+		t:SetPoint("TOPLEFT", self.frame, "TOPLEFT", x, -(self.HEADER_LINE - 2 - TAB_H))
+		x = x + t:GetWidth() + 4
+	end
+end
+
 function UI:Refresh()
 	if not (self.frame and self.frame:IsShown() and self.current) then return end
 	local page = self.pages[self.current]
 	if page.refresh then page.refresh(page.frame) end
 	if ns.Character then ns.Character:Refresh() end
+	-- 1.0: unspent Legacy points on the Tree tab (the reminder setting turns it off with the chat line)
+	local unspent = ns.Core:Setting("remindUnspent") and ns.Core:Unspent() or 0
+	self:SetTabBadge("tree", unspent > 0 and tostring(unspent) or "")
 end

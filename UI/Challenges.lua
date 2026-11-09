@@ -16,6 +16,26 @@ local LIST_Y = TABS_Y - TAB_H - 8
 local FOOT_H = 38 -- the footer: filters left, the points bar right
 local POINTS_W = 280
 
+-- 1.0: how rows sort inside a section. Rows keep their subgroup (the headers stay put); grids keep their shape.
+local SORTS = { { "game", L["Game order"] }, { "closest", L["Closest to done"] }, { "points", L["Most points"] }, { "name", L["Name"] } }
+local function SortRows(list, mode)
+	if not mode or mode == "game" then return end
+	local subRank, pos = {}, {}
+	for i, item in ipairs(list) do
+		pos[item] = i
+		subRank[item.sub or ""] = subRank[item.sub or ""] or i
+	end
+	local function closeness(item) return item.completed and -1 or (item.ratio or 0) end
+	table.sort(list, function(a, b)
+		local sa, sb = subRank[a.sub or ""], subRank[b.sub or ""]
+		if sa ~= sb then return sa < sb end
+		if mode == "closest" and closeness(a) ~= closeness(b) then return closeness(a) > closeness(b) end
+		if mode == "points" and (a.points or 0) ~= (b.points or 0) then return (a.points or 0) > (b.points or 0) end
+		if mode == "name" and a.name ~= b.name then return ns.Lower(a.name or "") < ns.Lower(b.name or "") end
+		return pos[a] < pos[b]
+	end)
+end
+
 local function Matches(item, status)
 	if status == "open" and item.completed then return false end
 	if status == "progress" and (item.completed or item.ratio == 0) then return false end
@@ -475,6 +495,18 @@ local function BuildChallenges(page)
 	chal.pointsLabel = T.Text(foot, T.F.name, C.head, "RIGHT")
 	chal.pointsLabel:SetPoint("RIGHT", chal.points, "LEFT", -12, 0)
 	chal.pointsLabel:SetText(L["Legacy points"])
+	chal.sort = T.Dropdown(foot, 130, function()
+		local out = {}
+		for _, s in ipairs(SORTS) do out[#out + 1] = { s[1], s[2] } end
+		return out
+	end, function(key)
+		db().ui.sort = key
+		UI:Refresh()
+	end)
+	chal.sort:SetPoint("RIGHT", chal.pointsLabel, "LEFT", -28, 0)
+	chal.sortLabel = T.Text(foot, T.F.body, C.muted, "RIGHT")
+	chal.sortLabel:SetPoint("RIGHT", chal.sort, "LEFT", -14, 0)
+	chal.sortLabel:SetText(L["Sort"])
 	BuildTabs(page)
 
 	local scroll, child = UI.Scroll(page, W, UI.CONTENT_H + LIST_Y - FOOT_H)
@@ -663,6 +695,13 @@ local function RefreshChallenges()
 	chal.scroll:SetShown(not board)
 	for _, chip in pairs(chal.chips) do chip:SetShown(not board) end
 	chal.count:SetShown(not board)
+	-- the sort only applies to row sections; a grid keeps its class × milestone shape
+	local rows = false
+	for _, g in ipairs(data.groups) do if g.title == section then rows = not GridShape(g) end end
+	chal.sort:SetShown(rows)
+	chal.sortLabel:SetShown(rows)
+	local sort = db().ui.sort or "game"
+	chal.sort:SetValue(sort)
 	if board then
 		RefreshBoard(data)
 		return
@@ -679,6 +718,7 @@ local function RefreshChallenges()
 					matched[item] = true
 				end
 			end
+			SortRows(list, sort)
 			if #list > 0 then
 				y = LaySection(g, list, matched, flashes, y)
 				shown = shown + #list

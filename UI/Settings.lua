@@ -23,6 +23,7 @@ local ROW_W = BODY_W - 28 - 14
 local SECTIONS = {
 	{ key = "general", label = L["General"], glyph = "Star" },
 	{ key = "minimap", label = L["Minimap"], glyph = "Map" },
+	{ key = "rules", label = L["How Legacy works"], glyph = "Shield" },
 	{ key = "data", label = L["Data"], glyph = "Lock" },
 }
 Settings_.SECTIONS = SECTIONS -- UI/Shots.lua walks them
@@ -87,6 +88,15 @@ function Builders.general(body)
 	r = Row(body, L["Announce earned challenges"], L["Print a chat line when you earn a Legacy challenge."])
 	r.switch = Switch(r, "announce")
 	rows[#rows + 1] = r
+	r = Row(body, L["Announce in guild chat"], L["Also post earned challenges to your guild, as a link they can click."])
+	r.switch = Switch(r, "announceGuild")
+	rows[#rows + 1] = r
+	r = Row(body, L["Remind me of unspent points"], L["A chat line at login when you have Legacy points left to spend."])
+	r.switch = Switch(r, "remindUnspent")
+	rows[#rows + 1] = r
+	r = Row(body, L["Remind me of rewards to collect"], L["A chat line at login when a reward waits for you at Innkeeper Wiley in Ratchet."])
+	r.switch = Switch(r, "remindRewards")
+	rows[#rows + 1] = r
 	r = Row(body, L["Sound for earned challenges"], L["Plays a sound from the game when you earn a Legacy challenge."], 54)
 	r.switch = Switch(r, "sound")
 	r.sound = T.Dropdown(r, 150, function()
@@ -123,6 +133,59 @@ function Builders.minimap(body)
 	return rows
 end
 
+-- 1.0: the rules the ledger relies on (Data.RULES), each with how sure we are: a line per rule, its source under
+-- it, the status on the right. Confirmed in the done colour, reported in gold, unchecked in amber.
+local STATUS = {
+	confirmed = { L["Confirmed"], C.teal }, reported = { L["Reported"], C.head }, unchecked = { L["Unchecked"], C.warn },
+}
+function Builders.rules(body)
+	local rows = {}
+	for _, rule in ipairs(ns.Data.RULES) do
+		local r = Row(body, L[rule.text], L[rule.source])
+		r.label:SetWidth(ROW_W - 150)
+		r.label:SetWordWrap(true)
+		r.label:SetJustifyV("TOP") -- a longer translation wraps downward, and the row grows with it
+		r:SetHeight(math.max(54, 10 + r.label:GetStringHeight() + 4 + 14 + 10))
+		local s = STATUS[rule.status] or STATUS.unchecked
+		r.status = Control(r, T.Text(r, T.F.name, s[2], "RIGHT"), -12)
+		r.status:SetText(s[1])
+		r.rule = rule.key
+		rows[#rows + 1] = r
+	end
+	local help = T.Text(body, T.F.small, C.muted)
+	help:SetWidth(ROW_W)
+	help:SetText(string.format(L["As of %s. Confirmed: the game or Blizzard shows it. Reported: guides and players say so, but nobody has proven it in game. Unchecked: nobody has tested it yet."], ns.Data.RULES_DATE))
+	rows.footer = help
+	return rows
+end
+
+-- A GitHub-style danger zone: a red heading, then the rows that delete or poke at things in a red-edged box.
+-- Settings_:Refresh draws the box around the rows marked danger.
+local function DangerHeading(parent)
+	local h = CreateFrame("Frame", nil, parent)
+	h:SetSize(ROW_W, 34)
+	h.text = T.Text(h, T.F.mid, C.bad)
+	h.text:SetPoint("BOTTOMLEFT", 2, 8)
+	h.text:SetText(L["Danger zone"])
+	h.heading = true
+	return h
+end
+
+-- Red button text. UIPanelButtonTemplate swaps font objects on hover and enable, which would undo a plain
+-- SetTextColor, so the red is a font object of its own (Blizzard's button font, recoloured) for normal and hover.
+local dangerFont
+local function DangerButton(row, label)
+	local b = Control(row, T.ActionButton(row, label, true))
+	if not dangerFont then
+		dangerFont = CreateFont("YourLegacyFontDanger")
+		dangerFont:CopyFontObject(GameFontNormal or "GameFontNormal")
+		dangerFont:SetTextColor(T.unpack(C.bad))
+	end
+	b:SetNormalFontObject(dangerFont)
+	b:SetHighlightFontObject(dangerFont)
+	return b
+end
+
 function Builders.data(body)
 	local rows = {}
 	local r = Row(body, L["Export"], L["Shows Your Legacy's data as text you can copy and keep as a backup."])
@@ -133,19 +196,26 @@ function Builders.data(body)
 	r.button = Control(r, T.ActionButton(r, L["Capture"]))
 	r.button:SetScript("OnClick", function() ns.Core:Capture() end)
 	rows[#rows + 1] = r
+	rows[#rows + 1] = DangerHeading(body)
 	r = Row(body, L["Delete saved data"], L["Starts Your Legacy over. Your Legacy progress in the game isn't touched."])
-	r.button = Control(r, T.ActionButton(r, L["Delete"], true))
+	r.button = DangerButton(r, L["Delete"])
 	r.button:SetScript("OnClick", function() StaticPopup_Show("YOURLEGACY_RESET") end)
+	r.danger = true
 	rows[#rows + 1] = r
 	-- 0.9.1: the developer row. Its tools stay greyed out until the switch unlocks them.
 	r = Row(body, L["Developer tools"], L["Turns on the screenshot tool below, for tracking down layout bugs."])
 	r.switch = Switch(r, "devTools")
+	r.danger = true
 	rows[#rows + 1] = r
 	r = Row(body, L["Screenshot every page"], L["Screenshots every page and tab, for bug reports. Type /reload afterwards to save the layout."])
-	r.button = Control(r, T.ActionButton(r, L["Take screenshots"]))
+	r.button = DangerButton(r, L["Take screenshots"])
 	r.button:SetScript("OnClick", function() if S("devTools") then ns.Shots:Start() end end)
 	r.shots = true
+	r.danger = true
 	rows[#rows + 1] = r
+	-- the red edge around the danger rows, behind them
+	rows.dangerBox = CreateFrame("Frame", nil, body)
+	T.Border(rows.dangerBox, C.bad, 0.7)
 	local help = T.Text(body, T.F.small, C.muted)
 	help:SetWidth(ROW_W)
 	help:SetText(L["Slash commands: /yl opens the window, /yl options this page, /yl status prints your points."])
@@ -237,11 +307,25 @@ function Settings_:Refresh()
 	for _, sec in ipairs(SECTIONS) do
 		if sec.key == page.section then page.panel.title:SetText(sec.label) end
 	end
+	local dangerTop, dangerBottom
 	for _, r in ipairs(holder.rows) do
 		RefreshRow(r)
+		-- rows inside the danger box sit 8px in from its edge
+		local inset = r.danger and 8 or 0
+		if r.danger and not dangerTop then dangerTop = y y = y + 8 end
+		if not r.danger and dangerTop and not dangerBottom then dangerBottom = y y = y + 8 end
 		r:ClearAllPoints()
-		r:SetPoint("TOPLEFT", holder, "TOPLEFT", 0, -y)
+		r:SetPoint("TOPLEFT", holder, "TOPLEFT", inset, -y)
+		if r.danger then r:SetWidth(ROW_W - 2 * inset) end
 		y = y + r:GetHeight() + 6
+	end
+	if dangerTop and not dangerBottom then dangerBottom = y + 2 y = y + 10 end
+	local box = holder.rows.dangerBox
+	if box then
+		box:ClearAllPoints()
+		box:SetPoint("TOPLEFT", holder, "TOPLEFT", 0, -dangerTop)
+		box:SetPoint("TOPRIGHT", holder, "TOPLEFT", ROW_W, -dangerTop)
+		box:SetHeight(dangerBottom - dangerTop)
 	end
 	if holder.rows.footer then
 		holder.rows.footer:ClearAllPoints()

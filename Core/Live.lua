@@ -321,6 +321,25 @@ function Live.ToggleTracking(achievementID)
 	return try(C_ContentTracking.IsTracking, kind, achievementID) and "tracked" or "failed"
 end
 
+-- 1.0: chat links, the way Blizzard_AchievementUI/Mainline does it (AchievementTemplateMixin:LinkInChat):
+-- GetAchievementLink, then ChatFrameUtil.InsertLink, which is true only when a chat edit box took the link.
+function Live.AchievementLink(achievementID)
+	return try(GetAchievementLink, achievementID)
+end
+
+function Live.InsertChatLink(link)
+	local util = ChatFrameUtil
+	if not (link and util and util.InsertLink) then return false end
+	return try(util.InsertLink, link) and true or false
+end
+
+-- One line to guild chat. False when the character has no guild (nothing is sent then).
+function Live.SendGuild(msg)
+	if not (try(IsInGuild) and C_ChatInfo and C_ChatInfo.SendChatMessage) then return false end
+	try(C_ChatInfo.SendChatMessage, msg, "GUILD")
+	return true
+end
+
 -- Every Legacy challenge the client lists for this character. A challenge is any achievement that awards
 -- Legacy points, so no ID list is needed. Achievements sit in subcategories (Druid, Alchemy, Ranks...)
 -- below sections (Classes, Tradeskills...); items are grouped by section.

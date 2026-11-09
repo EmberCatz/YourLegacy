@@ -33,8 +33,14 @@ local DEFAULTS = {
 		soundKey = "quest",  -- Data.SOUNDS key
 		-- 0.9.1
 		devTools = false,    -- Options > Data: unlocks the developer row (the screenshot run)
+		-- 1.0
+		announceGuild = false, -- also post earned challenges to guild chat
+		remindUnspent = true,  -- chat line at login when Legacy points are unspent
+		remindRewards = true,  -- chat line at login when an unlocked reward waits at Innkeeper Wiley
 	},
-	ui = { tab = "overview", status = "open", section = "" }, -- status: open | progress | done | all; section: the Challenges tab ("" = its overview)
+	-- status: open | progress | done | all; section: the Challenges tab ("" = its overview);
+	-- sort (1.0): game | closest | points | name, for the rows inside a section
+	ui = { tab = "overview", status = "open", section = "", sort = "game" },
 }
 
 local function ApplyDefaults(db, defaults)
@@ -150,6 +156,42 @@ function Core:RecordCharacter(withProgress)
 	self.db.characters[key] = snap
 end
 
+-- 1.0 reminders. Points this character could still spend: the account's points up to the per-character cap,
+-- minus the ranks it has learned. 0 before the account's first point (the panel isn't open yet).
+function Core:Unspent()
+	local earned = Live.Earned()
+	if earned <= 0 then return 0 end
+	local _, spent = Live.Trees()
+	return math.max(0, math.min(Data.SPEND_CAP, earned) - (spent or 0))
+end
+
+-- Rewards the account has unlocked but not collected from Innkeeper Wiley yet.
+function Core:RewardsToCollect()
+	local out, earned = {}, Live.Earned()
+	for _, r in ipairs(Live.Rewards()) do
+		if earned >= r.level and r.owned == false then out[#out + 1] = r end
+	end
+	return out
+end
+
+-- Once a session, a few seconds after the first login (the trees and collections have loaded by then).
+local reminded = false
+function Core:Remind()
+	if reminded or not self.db then return end
+	reminded = true
+	if self:Setting("remindUnspent") then
+		local n = self:Unspent()
+		if n == 1 then self:Print(L["You have 1 Legacy point to spend in the Legacy panel."])
+		elseif n > 1 then self:Print(string.format(L["You have %d Legacy points to spend in the Legacy panel."], n)) end
+	end
+	if self:Setting("remindRewards") then
+		for _, r in ipairs(self:RewardsToCollect()) do
+			self:Print(string.format(L["%s is waiting for you at Innkeeper Wiley in Ratchet."], r.name or "?"))
+		end
+	end
+end
+Core.REMIND_DELAY = 8
+
 function Core:ForgetCharacter(key)
 	if self.db and self.db.characters[key] and key ~= Live.CharacterKey() then
 		self.db.characters[key] = nil
@@ -191,6 +233,7 @@ function Core:RequestRefresh()
 			progressDue, recordDue = false, false
 		end
 		if ns.UI then ns.UI:Refresh() end
+		if ns.Minimap and ns.Minimap.UpdateText then ns.Minimap:UpdateText() end
 	end)
 end
 
@@ -218,6 +261,10 @@ Core:SetScript("OnEvent", function(self, event, arg1)
 		if ns.Minimap then ns.Minimap:Create() end
 	elseif event == "PLAYER_LOGOUT" then
 		self:RecordCharacter(true)
+	elseif event == "PLAYER_ENTERING_WORLD" then
+		-- arg1 = isInitialLogin: remind once after logging in, not after every loading screen
+		if arg1 then C_Timer.After(Core.REMIND_DELAY, function() Core:Remind() end) end
+		self:RequestRefresh()
 	elseif event == "CRITERIA_EARNED" then
 		-- a part of a challenge got done: read the progress again once the refresh settles
 		progressDue = true
@@ -234,9 +281,14 @@ Core:SetScript("OnEvent", function(self, event, arg1)
 			if self:Setting("sound") then
 				for _, snd in ipairs(Data.SOUNDS) do if snd.key == self:Setting("soundKey") then Live.PlaySound(snd.id) end end
 			end
+			local _, name = Live.try(GetAchievementInfo, arg1)
 			if self:Setting("announce") then
-				local _, name = Live.try(GetAchievementInfo, arg1)
 				self:Print(string.format(L["Legacy challenge earned: |cfff5dc9e%s|r (+%d)"], name or arg1, points))
+			end
+			-- 1.0: guild chat, with the challenge as a link the guild can click (off by default)
+			if self:Setting("announceGuild") then
+				local link = Live.AchievementLink(arg1) or name
+				if link then Live.SendGuild(string.format(L["Legacy challenge earned: %s (+%d Legacy points)"], link, points)) end
 			end
 		end
 		self:RequestRefresh()

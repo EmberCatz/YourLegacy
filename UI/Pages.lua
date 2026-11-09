@@ -15,17 +15,25 @@ local function IsClassSub(sub)
 	return false
 end
 
+-- 1.0: how sure the ledger is of a rule (Data.RULES), as a muted suffix after the rule's line. Confirmed rules get none.
+local STATUS_WORD = { reported = L["(reported)"], unchecked = L["(unchecked)"] }
+function P.RuleTag(key)
+	local rule = Data.RULE_BY_KEY[key]
+	local word = rule and STATUS_WORD[rule.status]
+	return word and (" " .. T.Hex(C.muted) .. word .. "|r") or ""
+end
+
 -- Feature 1: how a challenge counts, only where its data shows it (research/17-v09-feedback-features.md):
 -- several parts → all of them; no parts and a number in the description → one character reaches it.
--- Anything else (PvP ranks, a single quest or week) gets no line.
+-- Anything else (PvP ranks, a single quest or week) gets no line. Returns the line and its rule (Data.RULES).
 function P.CreditRule(item, criteria)
 	criteria = criteria or Live.Criteria(item.id)
-	if #criteria >= 2 then return string.format(L["Needs all %d listed."], #criteria) end
+	if #criteria >= 2 then return string.format(L["Needs all %d listed."], #criteria), "allParts" end
 	-- level and skill challenges have no criteria or a single one (the skill itself)
 	local target = tonumber((item.description or ""):match("(%d+)"))
 	if not target then return nil end
-	if IsClassSub(item.sub) then return string.format(L["One character has to reach level %d."], target) end
-	if target >= 75 then return string.format(L["One character has to reach %d skill."], target) end
+	if IsClassSub(item.sub) then return string.format(L["One character has to reach level %d."], target), "reach" end
+	if target >= 75 then return string.format(L["One character has to reach %d skill."], target), "reach" end
 	return nil
 end
 
@@ -135,6 +143,7 @@ local function ExplorationLines(item)
 			consider(ch.name, done)
 		end
 	end
+	GameTooltip:AddLine(L["Each character explores on its own."] .. P.RuleTag("explore"), T.unpack(C.ink2))
 	GameTooltip:AddLine(" ")
 	GameTooltip:AddLine(string.format(L["Closest: %s, %d of %d zones"], best, bestCount, #zones), T.unpack(C.head))
 	local missing = {}
@@ -153,12 +162,14 @@ function P.ShowChallengeTooltip(owner, item)
 	GameTooltip:SetText(item.name, T.unpack(item.completed and C.goldHi or C.white))
 	local scope = Live.Scope(item.id)
 	if scope then
-		GameTooltip:AddLine(scope == "account" and L["Account-wide progress"] or L["Progress per character"], T.unpack(C.ink2))
+		-- the account flag means the challenge is earned once for the account; its progress can still be per
+		-- character (exploration is, 2026-11-07 capture), so the label no longer says "account-wide progress"
+		GameTooltip:AddLine(scope == "account" and (L["Earned once for the account"] .. P.RuleTag("once")) or L["Progress per character"], T.unpack(C.ink2))
 	end
 	if item.description and item.description ~= "" then GameTooltip:AddLine(item.description, 0.78, 0.73, 0.65, true) end
 	local criteria = Live.Criteria(item.id)
-	local rule = P.CreditRule(item, criteria)
-	if rule then GameTooltip:AddLine(rule, T.unpack(C.head)) end
+	local rule, ruleKey = P.CreditRule(item, criteria)
+	if rule then GameTooltip:AddLine(rule .. P.RuleTag(ruleKey), T.unpack(C.head)) end
 	local explored = ExplorationLines(item)
 	if #criteria > 1 and not explored then
 		GameTooltip:AddLine(" ")
@@ -219,6 +230,9 @@ local TRACK_MESSAGES = {
 function P.ClickChallenge(owner)
 	local item = owner.item
 	if not item then return end
+	-- 1.0: with a chat box open, the chat-link modifier (Shift) links the challenge, as Blizzard's achievement
+	-- window does; with none open the same click falls through to tracking.
+	if IsModifiedClick and IsModifiedClick("CHATLINK") and Live.InsertChatLink(Live.AchievementLink(item.id)) then return end
 	if not (IsModifiedClick and IsModifiedClick("QUESTWATCHTOGGLE")) and owner.onExpand and #Live.Criteria(item.id) > 1 then
 		owner.onExpand(item)
 		return
