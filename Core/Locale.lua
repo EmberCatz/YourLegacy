@@ -56,8 +56,8 @@ ns.LOCALES.deDE = {
 	-- Options
 	["Window size"] = "Fenstergröße",
 	["Scales the Your Legacy window. Your UI scale still applies on top."] = "Skaliert das Fenster von Your Legacy. Deine UI-Skalierung gilt zusätzlich.",
-	["Minimap button"] = "Minimap-Button",
-	["Show the Your Legacy button on the minimap. The AddOns compartment button is always there."] = "Zeigt den Button von Your Legacy an der Minimap. Im AddOn-Fach ist er immer vorhanden.",
+	["Minimap button"] = "Minikarten-Knopf",
+	["Show the Your Legacy button on the minimap. The AddOns compartment button is always there."] = "Zeigt den Knopf von Your Legacy an der Minikarte. Im AddOn-Fach ist er immer vorhanden.",
 	["Lock window position"] = "Fensterposition sperren",
 	["Stop the window from being dragged."] = "Das Fenster lässt sich nicht mehr verschieben.",
 	["Close in combat"] = "Im Kampf schließen",
@@ -163,12 +163,18 @@ ns.LOCALES.deDE = {
 	["%d spent"] = "%d ausgegeben",
 
 	-- 0.6: options
-	["General"] = "Allgemein",
+	["Window"] = "Fenster",
+	["Chat and sound"] = "Chat und Ton",
+	["Maps"] = "Karten",
+	["When you earn a challenge"] = "Wenn du eine Herausforderung abschließt",
+	["At login"] = "Beim Einloggen",
+	["In dungeons and raids"] = "In Dungeons und Schlachtzügen",
+	["World map"] = "Weltkarte",
 	["Minimap"] = "Minikarte",
 	["Data"] = "Daten",
 	["Animations"] = "Animationen",
 	["Short fades when you open the window, switch tabs or pick an option. Turn it off for a still window."] = "Kurze Überblendungen beim Öffnen, beim Reiterwechsel und bei einer Auswahl. Aus heißt: nichts bewegt sich.",
-	["Button position"] = "Position der Schaltfläche",
+	["Button position"] = "Position des Knopfs",
 	["Reset position"] = "Position zurücksetzen",
 	["Uses LibDBIcon from another addon, so minimap button collectors can gather it. Drag it to move it."] = "Nutzt LibDBIcon aus einem anderen Addon, damit Sammler für Minikartenknöpfe ihn aufnehmen können. Zum Verschieben ziehen.",
 	["Drag the button around the minimap to move it."] = "Zieh den Knopf am Rand der Minikarte entlang, um ihn zu verschieben.",
@@ -190,7 +196,7 @@ ns.LOCALES.deDE = {
 	["Delete"] = "Löschen",
 	["Starts Your Legacy over. Your Legacy progress in the game isn't touched."] = "Setzt Your Legacy zurück. Dein Vermächtnisfortschritt im Spiel bleibt unberührt.",
 	["Delete everything Your Legacy has saved? Plans, notes, snapshots of your other characters and these options are gone afterwards."] = "Alles löschen, was Your Legacy gespeichert hat? Pläne, Notizen, Stände deiner anderen Charaktere und diese Optionen sind danach weg.",
-	["Slash commands: /yl opens the window, /yl options this page, /yl status prints your points."] = "Chatbefehle: /yl öffnet das Fenster, /yl options diese Seite, /yl status zeigt deine Punkte.",
+	["Slash commands: /yl opens the window, /yl options this page, /yl status prints your points, /yl here says what the dungeon you are in counts for."] = "Chatbefehle: /yl öffnet das Fenster, /yl options diese Seite, /yl status zeigt deine Punkte, /yl here sagt, wofür der Dungeon zählt, in dem du bist.",
 
 	-- 0.6: overview, challenges
 	["Best: %s"] = "Am weitesten: %s",

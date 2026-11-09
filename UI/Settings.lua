@@ -20,9 +20,12 @@ local NAV_W, GAP = 200, 12
 local BODY_W = W - NAV_W - GAP
 local ROW_W = BODY_W - 28 - 14
 
+-- 1.0 (the user's ask): grouped by what an option touches, not by when it was added. Window = the Your Legacy
+-- window itself; Chat and sound = everything it says or plays; Maps = the world map and the minimap.
 local SECTIONS = {
-	{ key = "general", label = L["General"], glyph = "Star" },
-	{ key = "minimap", label = L["Minimap"], glyph = "Map" },
+	{ key = "window", label = L["Window"], glyph = "Star" },
+	{ key = "chat", label = L["Chat and sound"], glyph = "Crown" },
+	{ key = "maps", label = L["Maps"], glyph = "Map" },
 	{ key = "rules", label = L["How Legacy works"], glyph = "Shield" },
 	{ key = "data", label = L["Data"], glyph = "Lock" },
 }
@@ -46,7 +49,12 @@ local function Row(parent, label, desc, height)
 	r.desc:SetPoint("TOPLEFT", r.label, "BOTTOMLEFT", 0, -4)
 	r.desc:SetWidth(ROW_W - 300)
 	r.desc:SetJustifyV("TOP")
+	r.desc:SetWordWrap(true)
 	r.desc:SetText(desc or "")
+	-- a description too long for one line (often a translation) wraps, and the row grows with it
+	local descH = r.desc:GetStringHeight()
+	r.desc:SetHeight(descH)
+	r:SetHeight(math.max(height or 54, 10 + 14 + 4 + descH + 10))
 	return r
 end
 
@@ -68,7 +76,26 @@ end
 ---------------------------------------------------------------- sections
 local Builders = {}
 
-function Builders.general(body)
+-- A small gold heading over a group of rows inside a section (laid out like a row, without a background).
+local function Heading(parent, text)
+	local h = CreateFrame("Frame", nil, parent)
+	h:SetSize(ROW_W, 26)
+	h.text = T.Text(h, T.F.label, C.head)
+	h.text:SetPoint("BOTTOMLEFT", 4, 4)
+	h.text:SetText(text)
+	h.heading = true
+	return h
+end
+
+local function SwitchRow(body, rows, label, desc, key)
+	local r = Row(body, label, desc)
+	r.switch = Switch(r, key)
+	rows[#rows + 1] = r
+	return r
+end
+
+-- The Your Legacy window itself.
+function Builders.window(body)
 	local rows = {}
 	local size = Row(body, L["Window size"], L["From 80 to 150%, on top of your UI scale."])
 	size.value = T.Text(size, T.F.name, C.ink, "RIGHT")
@@ -78,41 +105,19 @@ function Builders.general(body)
 	size.slider:SetPoint("TOPRIGHT", size, "TOPRIGHT", -70, -18)
 	size.value:SetPoint("LEFT", size.slider.forward, "RIGHT", 10, 0)
 	rows[#rows + 1] = size
-	local r
-	r = Row(body, L["Lock window position"], L["Stop the window from being dragged."])
-	r.switch = Switch(r, "locked")
-	rows[#rows + 1] = r
-	r = Row(body, L["Close in combat"], L["Close the window when combat starts. It doesn't update during combat either way."])
-	r.switch = Switch(r, "combatHide")
-	rows[#rows + 1] = r
-	r = Row(body, L["Announce earned challenges"], L["Print a chat line when you earn a Legacy challenge."])
-	r.switch = Switch(r, "announce")
-	rows[#rows + 1] = r
-	r = Row(body, L["Announce in guild chat"], L["Also post earned challenges to your guild, as a link they can click."])
-	r.switch = Switch(r, "announceGuild")
-	rows[#rows + 1] = r
-	r = Row(body, L["Remind me of unspent points"], L["A chat line at login when you have Legacy points left to spend."])
-	r.switch = Switch(r, "remindUnspent")
-	rows[#rows + 1] = r
-	r = Row(body, L["Remind me of rewards to collect"], L["A chat line at login when a reward waits for you at Innkeeper Wiley in Ratchet."])
-	r.switch = Switch(r, "remindRewards")
-	rows[#rows + 1] = r
-	r = Row(body, L["Dungeon and raid help"], L["In a dungeon or raid, say which challenge it counts for and what's left."])
-	r.switch = Switch(r, "instanceHelper")
-	rows[#rows + 1] = r
-	-- next to Legacy Forever (which shows zone progress itself) the box is a separate choice, off by default
-	if ns.Live.AddOnLoaded(ns.MapZone.LEGACY_FOREVER) then
-		r = Row(body, L["Zone progress on the world map"], L["Off by default while Legacy Forever is loaded, since it shows zone progress too."])
-		r.switch = Switch(r, "mapZoneWithLegacyForever")
-	else
-		r = Row(body, L["Zone progress on the world map"], L["Shows the Legacy progress of the zone you open on the world map."])
-		r.switch = Switch(r, "mapZone")
-	end
-	rows[#rows + 1] = r
-	r = Row(body, L["World map button"], L["A button on the world map with Your Legacy's map options."])
-	r.switch = Switch(r, "mapButton")
-	rows[#rows + 1] = r
-	r = Row(body, L["Sound for earned challenges"], L["Plays a sound from the game when you earn a Legacy challenge."], 54)
+	SwitchRow(body, rows, L["Lock window position"], L["Stop the window from being dragged."], "locked")
+	SwitchRow(body, rows, L["Close in combat"], L["Close the window when combat starts. It doesn't update during combat either way."], "combatHide")
+	SwitchRow(body, rows, L["Animations"], L["Short fades when you open the window, switch tabs or pick an option. Turn it off for a still window."], "animations")
+	return rows
+end
+
+-- Everything Your Legacy says in chat or plays, grouped by when it happens.
+function Builders.chat(body)
+	local rows = {}
+	rows[#rows + 1] = Heading(body, L["When you earn a challenge"])
+	SwitchRow(body, rows, L["Announce earned challenges"], L["Print a chat line when you earn a Legacy challenge."], "announce")
+	SwitchRow(body, rows, L["Announce in guild chat"], L["Also post earned challenges to your guild, as a link they can click."], "announceGuild")
+	local r = Row(body, L["Sound for earned challenges"], L["Plays a sound from the game when you earn a Legacy challenge."], 54)
 	r.switch = Switch(r, "sound")
 	r.sound = T.Dropdown(r, 150, function()
 		local out = {}
@@ -122,25 +127,36 @@ function Builders.general(body)
 		Set("soundKey", key)
 		for _, snd in ipairs(ns.Data.SOUNDS) do if snd.key == key then ns.Live.PlaySound(snd.id) end end
 	end)
-	r.sound:SetPoint("RIGHT", r.switch, "LEFT", -54, 0)
+	-- from the switch leftward, so a longer "Play" (German "Abspielen") pushes the dropdown, not into the switch
 	r.play = T.TextButton(r, L["Play"])
-	r.play:SetPoint("LEFT", r.sound, "RIGHT", 8, 0)
+	r.play:SetPoint("RIGHT", r.switch, "LEFT", -16, 0)
+	r.sound:SetPoint("RIGHT", r.play, "LEFT", -16, 0)
 	r.play:SetScript("OnClick", function()
 		for _, snd in ipairs(ns.Data.SOUNDS) do if snd.key == S("soundKey") then ns.Live.PlaySound(snd.id) end end
 	end)
 	rows[#rows + 1] = r
-	r = Row(body, L["Animations"], L["Short fades when you open the window, switch tabs or pick an option. Turn it off for a still window."])
-	r.switch = Switch(r, "animations")
-	rows[#rows + 1] = r
+	rows[#rows + 1] = Heading(body, L["At login"])
+	SwitchRow(body, rows, L["Remind me of unspent points"], L["A chat line at login when you have Legacy points left to spend."], "remindUnspent")
+	SwitchRow(body, rows, L["Remind me of rewards to collect"], L["A chat line at login when a reward waits for you at Innkeeper Wiley in Ratchet."], "remindRewards")
+	rows[#rows + 1] = Heading(body, L["In dungeons and raids"])
+	SwitchRow(body, rows, L["Dungeon and raid help"], L["In a dungeon or raid, say which challenge it counts for and what's left."], "instanceHelper")
 	return rows
 end
 
-function Builders.minimap(body)
+-- The world map (zone progress, its button) and the minimap button.
+function Builders.maps(body)
 	local rows = {}
-	local r = Row(body, L["Minimap button"], L["Show the Your Legacy button on the minimap. The AddOns compartment button is always there."])
-	r.switch = Switch(r, "minimap")
-	rows[#rows + 1] = r
-	r = Row(body, L["Button position"], "", 54)
+	rows[#rows + 1] = Heading(body, L["World map"])
+	-- next to Legacy Forever (which shows zone progress itself) the box is a separate choice, off by default
+	if ns.Live.AddOnLoaded(ns.MapZone.LEGACY_FOREVER) then
+		SwitchRow(body, rows, L["Zone progress on the world map"], L["Off by default while Legacy Forever is loaded, since it shows zone progress too."], "mapZoneWithLegacyForever")
+	else
+		SwitchRow(body, rows, L["Zone progress on the world map"], L["Shows the Legacy progress of the zone you open on the world map."], "mapZone")
+	end
+	SwitchRow(body, rows, L["World map button"], L["A button on the world map with Your Legacy's map options."], "mapButton")
+	rows[#rows + 1] = Heading(body, L["Minimap"])
+	SwitchRow(body, rows, L["Minimap button"], L["Show the Your Legacy button on the minimap. The AddOns compartment button is always there."], "minimap")
+	local r = Row(body, L["Button position"], "", 54)
 	r.reset = Control(r, T.ActionButton(r, L["Reset position"]))
 	r.reset:SetScript("OnClick", function() if ns.Minimap then ns.Minimap:ResetPosition() end end)
 	r.minimapInfo = true
@@ -233,7 +249,7 @@ function Builders.data(body)
 	T.Border(rows.dangerBox, C.bad, 0.7)
 	local help = T.Text(body, T.F.small, C.muted)
 	help:SetWidth(ROW_W)
-	help:SetText(L["Slash commands: /yl opens the window, /yl options this page, /yl status prints your points."])
+	help:SetText(L["Slash commands: /yl opens the window, /yl options this page, /yl status prints your points, /yl here says what the dungeon you are in counts for."])
 	rows.footer = help
 	return rows
 end
@@ -283,7 +299,7 @@ local function Build(frame)
 		holder:Hide()
 		page.sections[sec.key] = holder
 	end
-	page.section = "general"
+	page.section = "window"
 end
 
 local function RefreshRow(r)
