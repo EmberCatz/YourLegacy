@@ -29,6 +29,12 @@ function MB:Add(entry)
 	table.insert(self.entries, at, entry)
 end
 
+-- Over the map's icons: OpenMap's stitched map and its icons reach 9000 above the map's scroll container (it lifts
+-- Blizzard's map buttons over that; GatherLite's button goes there too). A frame level can't pass 10000.
+function MB.Level(container)
+	return math.min(container:GetFrameLevel() + 9010, 9900)
+end
+
 function MB.Enabled()
 	local db = ns.Core.db
 	return db and db.settings.mapButton == true or false
@@ -152,6 +158,10 @@ function MB:Update(shown)
 	-- ours out of combat, then let it stack again (its buttons skip hidden ones).
 	if self.stack then
 		if InCombatLockdown() then return end
+		-- over the map's icons (OpenMap's stitched map draws up to 9000 above the scroll container)
+		local canvas = Live.MapView()
+		local container = canvas and (canvas:GetParent() or canvas)
+		if container then button:SetFrameLevel(MB.Level(container)) end
 		local want = self.Enabled() and true or false
 		if button:IsShown() ~= want then
 			button:SetShown(want)
@@ -172,7 +182,7 @@ function MB:Update(shown)
 		if self.stack then return self:Update(shown) end
 	end
 	-- our own: the next slot of the top-left stack, under Blizzard's and other addons' buttons
-	button:SetFrameLevel(canvas:GetFrameLevel() + 3010)
+	button:SetFrameLevel(MB.Level(container))
 	button:ClearAllPoints()
 	button:SetPoint("TOPLEFT", container, "TOPLEFT", 3, Live.MapButtonSlot(container))
 	button:Show()

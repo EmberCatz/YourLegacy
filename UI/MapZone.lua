@@ -1,8 +1,11 @@
 -- 1.0 zone progress on the world map (research/19-feature-plan.md #8, the user's pick after map badges were
--- dropped). An inset box in a corner of the map (the user picks which, from the map button), only on maps with
--- Legacy work: the Legacy points icon, the map's name and how far along it is as a percentage over Blizzard's
--- profession bar; under it this character's exploration of the map, which other character has it all, and the
--- dungeons and raids whose entrance is on the map, each with what's left or a check when done.
+-- dropped). A banner on the map, only on maps with Legacy work: the Legacy points icon, the map's name and how far
+-- along it is as a percentage over Blizzard's profession bar; under it this character's exploration of the map,
+-- which other character has it all, and the dungeons and raids whose entrance is on the map, each with what's left
+-- or a check when done. Drag it by its body (as OpenMap's menu panel is): it remembers the spot, from the map's
+-- top-left, so it travels with the map window and stays inside it; until then it sits beside the map buttons in the
+-- top-left corner. "Reset position" in the map button's menu puts it back. It draws over the map's icons, OpenMap's
+-- stitched map included (Z.Level).
 -- No data provider, no pins, no hooks: EventRegistry's WorldMapOnShow / WorldMapOnHide (Blizzard_WorldMap.lua) start and
 -- stop a light ticker that looks for another map while the map is open (it also shows the map button). In combat
 -- the box and the button hide and nothing is built.
@@ -16,7 +19,6 @@ Z.TICK = 0.25                     -- seconds between checks while the map is ope
 Z.WIDTH, Z.ROW, Z.MAX_ROWS = 260, 16, 10
 Z.MARGIN = 8                      -- from the map's edge
 Z.TOP = 64                        -- header (30) + bar (24) + gap: where the first line starts
-Z.CORNERS = { "TOPLEFT", "TOPRIGHT", "BOTTOMLEFT", "BOTTOMRIGHT" }
 Z.LEGACY_FOREVER = "LegacyForever" -- cjber's addon shows zone progress too; ours stays off beside it unless chosen
 
 local box, ticker
@@ -36,10 +38,16 @@ function Z.SetEnabled(on)
 	ns.Core:SetSetting(Live.AddOnLoaded(Z.LEGACY_FOREVER) and "mapZoneWithLegacyForever" or "mapZone", on and true or false)
 end
 
-function Z.Corner()
-	local corner = ns.Core.db and S().mapZoneCorner
-	for _, c in ipairs(Z.CORNERS) do if c == corner then return c end end
-	return "TOPLEFT"
+-- Over the map's own icons: Blizzard's pins sit a little above the scroll container, OpenMap's stitched map and
+-- its icons up to 9000 above it (OpenMap lifts Blizzard's map buttons over that too). The ceiling is 10000.
+function Z.Level(container)
+	return math.min(container:GetFrameLevel() + 9005, 9900)
+end
+
+-- The dragged spot, or nil before the player has moved the box.
+function Z.SavedPos()
+	local pos = ns.Core.db and S().mapZonePos
+	if type(pos) == "table" and type(pos.x) == "number" and type(pos.y) == "number" then return pos.x, pos.y end
 end
 
 local function Matches(entrance)
@@ -139,24 +147,60 @@ local function Create(parent)
 		r.text:SetWordWrap(false)
 		box.rows[i] = r
 	end
+	-- drag it by its body; the spot is kept from the map's top-left, so it moves with the map window
+	box:EnableMouse(true)
+	box:SetMovable(true)
+	box:RegisterForDrag("LeftButton")
+	box:SetScript("OnDragStart", function(self)
+		if InCombatLockdown() then return end
+		self.dragging = true
+		self:StartMoving()
+	end)
+	box:SetScript("OnDragStop", function(self)
+		self:StopMovingOrSizing()
+		self:SetUserPlaced(false)
+		self.dragging = nil
+		local p = self:GetParent()
+		local l, t, pl, pt = self:GetLeft(), self:GetTop(), p:GetLeft(), p:GetTop()
+		if l and t and pl and pt then S().mapZonePos = { x = math.floor(l - pl + 0.5), y = math.floor(t - pt + 0.5) } end
+		self.spot = nil
+		Z.Place()
+	end)
+	box:SetScript("OnEnter", function(self)
+		GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+		GameTooltip:SetText(L["Drag to move it."], T.unpack(C.muted))
+		GameTooltip:Show()
+	end)
+	box:SetScript("OnLeave", function() GameTooltip:Hide() end)
 end
 
--- In the chosen corner, beside whatever already sits there: the map pin and tracking buttons, the stack of addon
--- buttons (ours included), the floor dropdown, Blizzard's panels at the bottom (Live.MapCornerClear). Placed again
--- on every check, so the box steps aside when a button appears later; SetPoint only when the spot changes.
+-- Where the player dragged it, kept inside the map (the window may be smaller now). Before that: the top-left corner,
+-- beside whatever already sits there (the stack of map buttons, ours included; the floor dropdown:
+-- Live.MapCornerClear). Placed again on every check, so it steps aside when a button turns up later; SetPoint only
+-- when the spot changes, never while it's being dragged.
 local function Place(parent)
-	local corner = Z.Corner()
-	local own = ns.MapButton.Button()
-	local dx, dy = Live.MapCornerClear(parent, corner, { own }, box)
-	local x = (corner:find("LEFT") and 1 or -1) * (Z.MARGIN + dx)
-	local y = (corner:find("TOP") and -1 or 1) * (Z.MARGIN + dy)
-	local spot = corner .. x .. ":" .. y
+	if box.dragging then return end
+	local x, y = Z.SavedPos()
+	if x then
+		x = math.max(0, math.min(x, parent:GetWidth() - box:GetWidth()))
+		y = math.min(0, math.max(y, box:GetHeight() - parent:GetHeight()))
+	else
+		local dx, dy = Live.MapCornerClear(parent, "TOPLEFT", { ns.MapButton.Button() }, box)
+		x, y = Z.MARGIN + dx, -(Z.MARGIN + dy)
+	end
+	local spot = x .. ":" .. y
 	if box.spot == spot then return end
 	box.spot = spot
 	box:ClearAllPoints()
-	box:SetPoint(corner, parent, corner, x, y)
+	box:SetPoint("TOPLEFT", parent, "TOPLEFT", x, y)
 end
 Z.Place = function() if box and box:IsShown() then Place(box:GetParent()) end end
+
+function Z.ResetPosition()
+	if ns.Core.db then S().mapZonePos = {} end
+	if box then box.spot = nil end
+	Z.Place()
+end
 
 local function Hide()
 	shown = {}
@@ -174,8 +218,7 @@ function Z:Layout()
 	-- on the scroll container that holds the canvas: stays put while the map zooms and pans
 	local parent = canvas:GetParent() or canvas
 	if not box then Create(parent) end
-	box:SetFrameLevel(canvas:GetFrameLevel() + 3000) -- above the map's pins (PIN_FRAME_LEVEL_*)
-	Place(parent)
+	box:SetFrameLevel(Z.Level(parent))
 	box.title:SetText(name or "")
 	box.hint:SetText(Z.Percent(ratio))
 	box.hint:SetTextColor(T.unpack(ratio >= 1 and C.goldHi or C.white))
@@ -191,6 +234,7 @@ function Z:Layout()
 		end
 	end
 	box:SetHeight(Z.TOP + math.min(#lines, Z.MAX_ROWS) * Z.ROW + 10)
+	Place(parent) -- after the height: a dragged spot is kept inside the map
 	local wasShown = box:IsShown()
 	box:Show()
 	if newMap or not wasShown then T.Reveal(box, T.DUR_SHORT, 0.97) end
@@ -239,12 +283,7 @@ end
 
 Z.Box = function() return box end -- for tests
 
--- The map button's menu: the switch and the corner.
+-- The map button's menu: the switch, and the banner back to its first spot.
 local MB = ns.MapButton
 MB:Add({ kind = "toggle", order = 10, text = L["Zone progress"], get = Z.Enabled, set = Z.SetEnabled })
-MB:Add({ kind = "title", order = 20, text = L["Corner"] })
-local CORNER_NAMES = { TOPLEFT = L["Top left"], TOPRIGHT = L["Top right"], BOTTOMLEFT = L["Bottom left"], BOTTOMRIGHT = L["Bottom right"] }
-for i, corner in ipairs(Z.CORNERS) do
-	MB:Add({ kind = "radio", order = 20 + i, text = CORNER_NAMES[corner], value = corner, get = Z.Corner,
-		set = function(v) ns.Core:SetSetting("mapZoneCorner", v) end })
-end
+MB:Add({ kind = "action", order = 20, text = L["Reset position"], run = Z.ResetPosition })

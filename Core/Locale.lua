@@ -448,11 +448,7 @@ ns.LOCALES.deDE = {
 	["A button on the world map with Your Legacy's map options."] = "Ein Knopf auf der Weltkarte mit den Kartenoptionen von Your Legacy.",
 	["Click for map options."] = "Klicken für die Kartenoptionen.",
 	["Zone progress"] = "Gebietsfortschritt",
-	["Corner"] = "Ecke",
-	["Top left"] = "Oben links",
-	["Top right"] = "Oben rechts",
-	["Bottom left"] = "Unten links",
-	["Bottom right"] = "Unten rechts",
+	["Drag to move it."] = "Zum Verschieben ziehen.",
 	["Open Your Legacy"] = "Your Legacy öffnen",
 }
 
