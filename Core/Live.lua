@@ -329,6 +329,42 @@ function Live.MapButtonSlot(container)
 	return y
 end
 
+-- What already sits in one corner of the map's scroll container, so the zone box can sit beside it instead of on
+-- top of it: Blizzard's map buttons (the map pin and tracking buttons, the floor dropdown, the panels at the bottom)
+-- and other addons' buttons are all shown children of WorldMapFrame; `extra` adds frames of ours. Small frames
+-- (buttons, up to 40 wide) push the box sideways, wider ones push it up or down. Returns dx, dy in pixels (0 when the
+-- corner is free), always away from the corner. Reads positions only.
+Live.MAP_CORNER_REACH = { x = 220, y = 120 } -- how far from the corner a frame still counts as "in" it
+function Live.MapCornerClear(container, corner, extra, skip)
+	local top, bottom = container and try(container.GetTop, container), container and try(container.GetBottom, container)
+	local left, right = container and try(container.GetLeft, container), container and try(container.GetRight, container)
+	if not (top and bottom and left and right) then return 0, 0 end
+	local frames = {}
+	if type(WorldMapFrame) == "table" and type(WorldMapFrame.GetChildren) == "function" then
+		frames = { try(WorldMapFrame.GetChildren, WorldMapFrame) } -- every child, not just the first
+	end
+	for _, f in ipairs(extra or {}) do frames[#frames + 1] = f end
+	local isTop, isLeft = corner:find("TOP") ~= nil, corner:find("LEFT") ~= nil
+	local dx, dy = 0, 0
+	for _, f in ipairs(frames) do
+		if type(f) == "table" and f ~= container and f ~= skip and type(f.IsShown) == "function" and try(f.IsShown, f) then
+			local fl, fr, ft, fb = try(f.GetLeft, f), try(f.GetRight, f), try(f.GetTop, f), try(f.GetBottom, f)
+			if fl and fr and ft and fb and fr - fl <= 200 and ft - fb <= 60 then
+				-- inside the container, near this corner
+				local inside = fl >= left - 2 and fr <= right + 2 and ft <= top + 2 and fb >= bottom - 2
+				local fromSide = isLeft and (fr - left) or (right - fl)    -- how far it reaches in from the side
+				local fromEdge = isTop and (top - fb) or (ft - bottom)     -- how far it reaches in from the top / bottom
+				local near = (isLeft and fl - left or right - fr) <= Live.MAP_CORNER_REACH.x
+					and (isTop and top - ft or fb - bottom) <= Live.MAP_CORNER_REACH.y
+				if inside and near then
+					if fr - fl <= 40 then dx = math.max(dx, fromSide) else dy = math.max(dy, fromEdge) end
+				end
+			end
+		end
+	end
+	return dx, dy
+end
+
 function Live.MapName(mapID)
 	local info = mapID and C_Map and try(C_Map.GetMapInfo, mapID)
 	return info and info.name

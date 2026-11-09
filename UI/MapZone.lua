@@ -15,7 +15,6 @@ ns.MapZone = Z
 Z.TICK = 0.25                     -- seconds between checks while the map is open
 Z.WIDTH, Z.ROW, Z.MAX_ROWS = 260, 16, 10
 Z.MARGIN = 8                      -- from the map's edge
-Z.STACK_W = 32                    -- the column of map buttons down the top-left corner (3 + 32 px)
 Z.TOP = 64                        -- header (30) + bar (24) + gap: where the first line starts
 Z.CORNERS = { "TOPLEFT", "TOPRIGHT", "BOTTOMLEFT", "BOTTOMRIGHT" }
 Z.LEGACY_FOREVER = "LegacyForever" -- cjber's addon shows zone progress too; ours stays off beside it unless chosen
@@ -142,15 +141,22 @@ local function Create(parent)
 	end
 end
 
+-- In the chosen corner, beside whatever already sits there: the map pin and tracking buttons, the stack of addon
+-- buttons (ours included), the floor dropdown, Blizzard's panels at the bottom (Live.MapCornerClear). Placed again
+-- on every check, so the box steps aside when a button appears later; SetPoint only when the spot changes.
 local function Place(parent)
 	local corner = Z.Corner()
-	local x = corner:find("LEFT") and Z.MARGIN or -Z.MARGIN
-	local y = corner:find("TOP") and -Z.MARGIN or Z.MARGIN
-	-- top left: right of the stack of map buttons (Blizzard's, ours and other addons')
-	if corner == "TOPLEFT" then x = x + Z.STACK_W end
+	local own = ns.MapButton.Button()
+	local dx, dy = Live.MapCornerClear(parent, corner, { own }, box)
+	local x = (corner:find("LEFT") and 1 or -1) * (Z.MARGIN + dx)
+	local y = (corner:find("TOP") and -1 or 1) * (Z.MARGIN + dy)
+	local spot = corner .. x .. ":" .. y
+	if box.spot == spot then return end
+	box.spot = spot
 	box:ClearAllPoints()
 	box:SetPoint(corner, parent, corner, x, y)
 end
+Z.Place = function() if box and box:IsShown() then Place(box:GetParent()) end end
 
 local function Hide()
 	shown = {}
@@ -199,6 +205,8 @@ function Z:Check()
 	if mapID ~= shown.map or self.dirty then
 		self.dirty = false
 		self:Layout()
+	else
+		Z.Place() -- a button appeared or left in the box's corner
 	end
 end
 
