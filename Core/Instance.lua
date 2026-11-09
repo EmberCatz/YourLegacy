@@ -44,6 +44,16 @@ end
 
 local function Title(item) return Live.AchievementLink(item.id) or item.name end
 
+-- What's still open in one match of Live.InstanceChallenges: the missing parts at this place, the challenge's
+-- parts left and total. A raid challenge without parts (Onyxia's) counts as one thing left. Used by the map badges.
+function I.Missing(m)
+	local missing = {}
+	for _, c in ipairs(m.parts) do if not c.done then missing[#missing + 1] = c end end
+	local total, left = #m.criteria, Left(m.criteria)
+	if m.whole and total == 0 then return {}, 1, 1 end
+	return missing, left, total
+end
+
 -- The boss whose kill gives a part, once a fight here has shown it.
 function I.BossFor(c)
 	if c.type ~= Data.CRITERIA_KILL or not c.assetID or c.assetID == 0 then return nil end

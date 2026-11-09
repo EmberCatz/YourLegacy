@@ -285,6 +285,36 @@ function Live.InstanceChallenges(name, kind)
 	return out
 end
 
+-- 1.0 map badges. The world map's canvas, the map it shows and its zoom, or nil while there's no world map.
+-- MapCanvasMixin:GetCanvas / GetMapID / GetCanvasScale (Blizzard_MapCanvas/Blizzard_MapCanvas.lua, Forever). Reads
+-- only: the badges never go through the map's data providers or pin pools (research/19-feature-plan.md #8).
+function Live.MapView()
+	local map = WorldMapFrame
+	if type(map) ~= "table" or type(map.GetCanvas) ~= "function" then return nil end
+	local canvas = try(map.GetCanvas, map)
+	if not canvas then return nil end
+	return canvas, try(map.GetMapID, map), try(map.GetCanvasScale, map) or 1
+end
+
+-- Dungeon and raid entrances on a map (the data Blizzard's own entrance pins use): name, normalized x / y,
+-- kind from the pin's atlas ("Raid" in it = raid).
+function Live.DungeonEntrances(mapID)
+	local out = {}
+	if not (mapID and C_EncounterJournal) then return out end
+	for _, e in ipairs(try(C_EncounterJournal.GetDungeonEntrancesForMap, mapID) or {}) do
+		local pos = e.position
+		if type(e.name) == "string" and e.name ~= "" and pos and pos.x and pos.y then
+			out[#out + 1] = { name = e.name, x = pos.x, y = pos.y,
+				kind = tostring(e.atlasName or ""):find("Raid") and "raid" or "party" }
+		end
+	end
+	return out
+end
+
+function Live.AddOnLoaded(name)
+	return C_AddOns and try(C_AddOns.IsAddOnLoaded, name) and true or false
+end
+
 -- What this character has done on multi-part challenges, read when the snapshot is taken (login, logout, an
 -- earned criterion), never on a refresh: explore = { [zone key] = true } for the nested challenge (Explorer),
 -- parts = { [achievementID] = { [criteria key] = true } } for every challenge with several parts.

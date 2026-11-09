@@ -28,3 +28,4 @@ UI\Options.lua
 UI\Shots.lua
 UI\Export.lua
 UI\Minimap.lua
+UI\MapBadges.lua
