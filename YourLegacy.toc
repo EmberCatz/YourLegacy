@@ -28,4 +28,5 @@ UI\Options.lua
 UI\Shots.lua
 UI\Export.lua
 UI\Minimap.lua
+UI\MapButton.lua
 UI\MapZone.lua

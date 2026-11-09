@@ -42,6 +42,8 @@ local DEFAULTS = {
 		instanceHelper = true, -- chat lines inside a dungeon or raid that counts toward a challenge (Core/Instance.lua)
 		mapZone = true,        -- Legacy progress of the zone open on the world map (UI/MapZone.lua)
 		mapZoneWithLegacyForever = false, -- the same while Legacy Forever is loaded (it shows zone progress too)
+		mapZoneCorner = "TOPLEFT", -- where the box sits on the map (MapZone.CORNERS), picked from the map button
+		mapButton = true,      -- our button on the world map with the map options (UI/MapButton.lua)
 	},
 	-- status: open | progress | done | all; section: the Challenges tab ("" = its overview);
 	-- sort (1.0): game | closest | points | name, for the rows inside a section

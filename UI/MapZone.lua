@@ -1,9 +1,11 @@
 -- 1.0 zone progress on the world map (research/19-feature-plan.md #8, the user's pick after map badges were
--- dropped). A small inset in the map's top-left corner, only on maps with Legacy work: how much of the map this
--- character has explored for the exploration challenge, which other character has it all, and the dungeons and raids
--- whose entrance is on the map, each with what's left or "done". The title counts the goals done.
+-- dropped). An inset box in a corner of the map (the user picks which, from the map button), only on maps with
+-- Legacy work: the Legacy points icon, the map's name and how far along it is as a percentage over Blizzard's
+-- profession bar; under it this character's exploration of the map, which other character has it all, and the
+-- dungeons and raids whose entrance is on the map, each with what's left or a check when done.
 -- No data provider, no pins, no hooks: EventRegistry's WorldMapOnShow / WorldMapOnHide (Blizzard_WorldMap.lua) start and
--- stop a light ticker that looks for another map while the map is open. In combat the box hides and nothing is built.
+-- stop a light ticker that looks for another map while the map is open (it also shows the map button). In combat
+-- the box and the button hide and nothing is built.
 local _, ns = ...
 local T, Live, L = ns.Theme, ns.Live, ns.L
 local C = T.C
@@ -11,19 +13,33 @@ local C = T.C
 local Z = {}
 ns.MapZone = Z
 Z.TICK = 0.25                     -- seconds between checks while the map is open
-Z.WIDTH, Z.ROW, Z.MAX_ROWS = 250, 16, 10
-Z.ANCHOR, Z.X, Z.Y = "TOPLEFT", 8, -8 -- inside the map's scroll container (in-game check: clear of Blizzard's overlays)
+Z.WIDTH, Z.ROW, Z.MAX_ROWS = 260, 16, 10
+Z.MARGIN = 8                      -- from the map's edge
+Z.TOP = 64                        -- header (30) + bar (24) + gap: where the first line starts
+Z.CORNERS = { "TOPLEFT", "TOPRIGHT", "BOTTOMLEFT", "BOTTOMRIGHT" }
 Z.LEGACY_FOREVER = "LegacyForever" -- cjber's addon shows zone progress too; ours stays off beside it unless chosen
 
 local box, ticker
 local shown = {}                 -- what the box shows now: map, challenges (the Live.Challenges table it was built from)
 local cache, cacheFor = {}, nil  -- entrance name → matches, for one Live.Challenges() reading
 
+local function S() return ns.Core.db.settings end
+
 function Z.Enabled()
 	local db = ns.Core.db
 	if not db then return false end
 	if Live.AddOnLoaded(Z.LEGACY_FOREVER) then return db.settings.mapZoneWithLegacyForever == true end
 	return db.settings.mapZone == true
+end
+
+function Z.SetEnabled(on)
+	ns.Core:SetSetting(Live.AddOnLoaded(Z.LEGACY_FOREVER) and "mapZoneWithLegacyForever" or "mapZone", on and true or false)
+end
+
+function Z.Corner()
+	local corner = ns.Core.db and S().mapZoneCorner
+	for _, c in ipairs(Z.CORNERS) do if c == corner then return c end end
+	return "TOPLEFT"
 end
 
 local function Matches(entrance)
@@ -45,19 +61,23 @@ local function ExploredBy(progress)
 	end
 end
 
--- The box's lines for a map: { { text, colour } }, goals done, goals in all. Nothing when the map has no Legacy work.
+-- The box's content for a map: lines { text, done, sub } (sub = a note under the goal above it), the share of the
+-- map's Legacy work done (0-1, each goal counts the same: explored share, bosses or wings done, 0 or 1 for a
+-- clear), goals done, goals in all, the map's name. No lines when the map has no Legacy work.
 function Z.Lines(mapID)
-	local lines, done, goals = {}, 0, 0
+	local lines, done, goals, sum = {}, 0, 0, 0
 	local name = Live.MapName(mapID)
 	local explore = Live.ExploreProgress(name)
 	if explore then
 		goals = goals + 1
 		local complete = explore.done >= explore.total
 		local other = not complete and ExploredBy(explore)
-		if complete or other then done = done + 1 end
+		local share = (complete or other) and 1 or explore.done / explore.total
+		sum = sum + share
+		if share >= 1 then done = done + 1 end
 		local fmt = explore.nested and L["%s: %d of %d zones explored"] or L["%s: %d of %d areas explored"]
-		lines[#lines + 1] = { string.format(fmt, Live.PlayerName(), explore.done, explore.total), complete and C.teal or C.white }
-		if other then lines[#lines + 1] = { string.format(L["%s has explored all of it."], other), C.teal } end
+		lines[#lines + 1] = { text = string.format(fmt, Live.PlayerName(), explore.done, explore.total), done = complete }
+		if other then lines[#lines + 1] = { text = string.format(L["%s has explored all of it."], other), done = true, sub = true } end
 	end
 	local seen = {}
 	for _, e in ipairs(Live.DungeonEntrances(mapID)) do
@@ -66,39 +86,69 @@ function Z.Lines(mapID)
 				seen[m.item.id .. ":" .. e.name] = true
 				goals = goals + 1
 				local missing, left, total = ns.Instance.Missing(m)
-				local text, colour
+				local text, share
 				if m.item.completed or (not m.whole and #missing == 0) or (m.whole and left == 0) then
-					text, colour, done = string.format(L["%s: done"], e.name), C.teal, done + 1
+					text, share = string.format(L["%s: done"], e.name), 1
 				elseif m.whole and total > 1 then
-					text, colour = string.format(L["%s: %d of %d bosses left"], e.name, left, total), C.white
+					text, share = string.format(L["%s: %d of %d bosses left"], e.name, left, total), (total - left) / total
 				elseif m.whole then
-					text, colour = string.format(L["%s: not done yet"], e.name), C.white
+					text, share = string.format(L["%s: not done yet"], e.name), 0
 				elseif #m.parts > 1 then
-					text, colour = string.format(L["%s: %d wings left"], e.name, #missing), C.white
+					text, share = string.format(L["%s: %d wings left"], e.name, #missing), (#m.parts - #missing) / #m.parts
 				else
-					text, colour = string.format(L["%s: needs a clear"], e.name), C.white
+					text, share = string.format(L["%s: needs a clear"], e.name), 0
 				end
-				lines[#lines + 1] = { text, colour }
+				sum = sum + share
+				if share >= 1 then done = done + 1 end
+				lines[#lines + 1] = { text = text, done = share >= 1 }
 			end
 		end
 	end
-	return lines, done, goals, name
+	return lines, goals > 0 and sum / goals or 0, done, goals, name
 end
 
+-- "48%": rounded down, so 100% means every goal here is done.
+function Z.Percent(ratio) return string.format("%d%%", math.floor(math.max(0, math.min(1, ratio)) * 100 + 1e-6)) end
+
 local function Create(parent)
-	box = T.Panel(parent, "", Z.WIDTH, 60)
-	box:SetPoint(Z.ANCHOR, parent, Z.ANCHOR, Z.X, Z.Y)
-	box.band:SetHeight(24)
+	box = T.Panel(parent, "", Z.WIDTH, 100)
+	box.icon = box:CreateTexture(nil, "ARTWORK")
+	box.icon:SetSize(14, 20) -- UI-Legacy-Points-icon-c60 is 50 × 73
+	box.icon:SetPoint("LEFT", box.band, "LEFT", 10, 0)
+	if not T.Atlas(box.icon, "UI-Legacy-Points-icon-c60") then box.icon:SetTexture(T.Path("LegacyPoints")) end
+	box.title:ClearAllPoints()
+	box.title:SetPoint("LEFT", box.icon, "RIGHT", 6, 0)
+	box.title:SetPoint("RIGHT", box.band, "RIGHT", -64, 0)
 	box.title:SetFontObject(T.F.label)
-	box.rule:SetPoint("TOPLEFT", box.band, "BOTTOMLEFT", 8, 0)
+	box.title:SetWordWrap(false)
+	box.hint:SetFontObject(T.F.mid)
+	box.bar = T.ProgressBar(box, Z.WIDTH - 24)
+	box.bar:SetPoint("TOPLEFT", box, "TOPLEFT", 12, -36)
 	box.rows = {}
 	for i = 1, Z.MAX_ROWS do
-		local fs = T.Text(box, T.F.small, C.white)
-		fs:SetWidth(Z.WIDTH - 24)
-		fs:SetWordWrap(false)
-		fs:SetPoint("TOPLEFT", box, "TOPLEFT", 12, -32 - (i - 1) * Z.ROW)
-		box.rows[i] = fs
+		local r = CreateFrame("Frame", nil, box)
+		r:SetSize(Z.WIDTH - 24, Z.ROW)
+		r:SetPoint("TOPLEFT", box, "TOPLEFT", 12, -Z.TOP - (i - 1) * Z.ROW)
+		r.check = r:CreateTexture(nil, "ARTWORK")
+		r.check:SetSize(12, 12)
+		r.check:SetPoint("LEFT")
+		if not T.Atlas(r.check, "worldquest-tracker-checkmark") then r.check:SetTexture(T.Path("Check")) end
+		r.text = T.Text(r, T.F.small, C.white)
+		r.text:SetPoint("LEFT", 16, 0)
+		r.text:SetPoint("RIGHT")
+		r.text:SetWordWrap(false)
+		box.rows[i] = r
 	end
+end
+
+local function Place(parent)
+	local corner = Z.Corner()
+	local x = corner:find("LEFT") and Z.MARGIN or -Z.MARGIN
+	local y = corner:find("TOP") and -Z.MARGIN or Z.MARGIN
+	-- top right: under the map buttons (ours and Blizzard's)
+	if corner == "TOPRIGHT" then y = y - ns.MapButton.SIZE - 4 end
+	box:ClearAllPoints()
+	box:SetPoint(corner, parent, corner, x, y)
 end
 
 local function Hide()
@@ -110,30 +160,40 @@ end
 function Z:Layout()
 	local canvas, mapID = Live.MapView()
 	if not canvas or not mapID or InCombatLockdown() or not self.Enabled() then Hide() return end
-	local lines, done, goals, name = Z.Lines(mapID)
+	local lines, ratio, done, goals, name = Z.Lines(mapID)
+	local newMap = shown.map ~= mapID
 	shown = { map = mapID, challenges = Live.Challenges() }
 	if #lines == 0 then if box then box:Hide() end return end
 	-- on the scroll container that holds the canvas: stays put while the map zooms and pans
-	if not box then Create(canvas:GetParent() or canvas) end
+	local parent = canvas:GetParent() or canvas
+	if not box then Create(parent) end
 	box:SetFrameLevel(canvas:GetFrameLevel() + 3000) -- above the map's pins (PIN_FRAME_LEVEL_*)
-	box.title:SetText(string.format(L["Legacy in %s"], name or ""))
-	box.hint:SetText(string.format("%d / %d", done, goals))
-	box.hint:SetTextColor(T.unpack(done >= goals and C.teal or C.ink2))
-	for i, fs in ipairs(box.rows) do
+	Place(parent)
+	box.title:SetText(name or "")
+	box.hint:SetText(Z.Percent(ratio))
+	box.hint:SetTextColor(T.unpack(ratio >= 1 and C.goldHi or C.white))
+	box.bar:SetValue(ratio)
+	box.goals = { done = done, total = goals }
+	for i, r in ipairs(box.rows) do
 		local line = lines[i]
-		fs:SetShown(line ~= nil)
+		r:SetShown(line ~= nil)
 		if line then
-			fs:SetText(line[1])
-			fs:SetTextColor(T.unpack(line[2]))
+			r.text:SetText(line.text)
+			r.text:SetTextColor(T.unpack(line.done and C.teal or (line.sub and C.ink2 or C.white)))
+			r.check:SetShown(line.done and not line.sub)
 		end
 	end
-	box:SetHeight(32 + math.min(#lines, Z.MAX_ROWS) * Z.ROW + 8)
+	box:SetHeight(Z.TOP + math.min(#lines, Z.MAX_ROWS) * Z.ROW + 10)
+	local wasShown = box:IsShown()
 	box:Show()
+	if newMap or not wasShown then T.Reveal(box, T.DUR_SHORT, 0.97) end
 end
 
 -- While the map is open: fill again when it shows another map or the challenges changed (a refresh).
 function Z:Check()
-	if InCombatLockdown() then Hide() return end
+	local combat = InCombatLockdown()
+	ns.MapButton:Update(not combat)
+	if combat then Hide() return end
 	local _, mapID = Live.MapView()
 	if mapID ~= shown.map or self.dirty then
 		self.dirty = false
@@ -156,6 +216,7 @@ end
 
 function Z:OnMapHide()
 	if ticker then ticker:Cancel() ticker = nil end
+	ns.MapButton:Update(false)
 	Hide()
 end
 
@@ -168,3 +229,13 @@ function Z:Register()
 end
 
 Z.Box = function() return box end -- for tests
+
+-- The map button's menu: the switch and the corner.
+local MB = ns.MapButton
+MB:Add({ kind = "toggle", order = 10, text = L["Zone progress"], get = Z.Enabled, set = Z.SetEnabled })
+MB:Add({ kind = "title", order = 20, text = L["Corner"] })
+local CORNER_NAMES = { TOPLEFT = L["Top left"], TOPRIGHT = L["Top right"], BOTTOMLEFT = L["Bottom left"], BOTTOMRIGHT = L["Bottom right"] }
+for i, corner in ipairs(Z.CORNERS) do
+	MB:Add({ kind = "radio", order = 20 + i, text = CORNER_NAMES[corner], value = corner, get = Z.Corner,
+		set = function(v) ns.Core:SetSetting("mapZoneCorner", v) end })
+end

@@ -435,7 +435,6 @@ ns.LOCALES.deDE = {
 	["Zone progress on the world map"] = "Gebietsfortschritt auf der Weltkarte",
 	["Shows the Legacy progress of the zone you open on the world map."] = "Zeigt den Vermächtnis-Fortschritt des Gebiets auf der Weltkarte.",
 	["Off by default while Legacy Forever is loaded, since it shows zone progress too."] = "Aus, solange Legacy Forever geladen ist, das ihn auch zeigt.",
-	["Legacy in %s"] = "Vermächtnis in %s",
 	["%s: %d of %d areas explored"] = "%s: %d von %d Orten erkundet",
 	["%s: %d of %d zones explored"] = "%s: %d von %d Gebieten erkundet",
 	["%s has explored all of it."] = "%s hat alles erkundet.",
@@ -444,6 +443,17 @@ ns.LOCALES.deDE = {
 	["%s: %d of %d bosses left"] = "%s: noch %d von %d Bossen",
 	["%s: not done yet"] = "%s: noch offen",
 	["%s: done"] = "%s: erledigt",
+	-- 1.0 world map button
+	["World map button"] = "Weltkartenknopf",
+	["A button on the world map with Your Legacy's map options."] = "Ein Knopf auf der Weltkarte mit den Kartenoptionen von Your Legacy.",
+	["Click for map options."] = "Klicken für die Kartenoptionen.",
+	["Zone progress"] = "Gebietsfortschritt",
+	["Corner"] = "Ecke",
+	["Top left"] = "Oben links",
+	["Top right"] = "Oben rechts",
+	["Bottom left"] = "Unten links",
+	["Bottom right"] = "Unten rechts",
+	["Open Your Legacy"] = "Your Legacy öffnen",
 }
 
 local strings = ns.LOCALES[GetLocale and GetLocale() or "enUS"]

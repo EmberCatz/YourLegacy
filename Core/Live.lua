@@ -296,6 +296,24 @@ function Live.MapView()
 	return canvas, try(map.GetMapID, map)
 end
 
+-- The left edge of Blizzard's own buttons along the map's top-right corner (WorldMapFrame.overlayFrames, the
+-- frames Blizzard_WorldMap adds with AddOverlayFrame), as an x offset from the container's right edge, so our map
+-- button can sit beside them. Reads positions only. nil when none are found.
+function Live.MapOverlayLeft(container)
+	local frames = type(WorldMapFrame) == "table" and WorldMapFrame.overlayFrames
+	if type(frames) ~= "table" or not container then return nil end
+	local top, right = try(container.GetTop, container), try(container.GetRight, container)
+	if not (top and right) then return nil end
+	local left
+	for _, f in ipairs(frames) do
+		if type(f) == "table" and type(f.IsShown) == "function" and try(f.IsShown, f) then
+			local fl, ft = try(f.GetLeft, f), try(f.GetTop, f)
+			if fl and ft and ft > top - 48 and fl > right - 300 then left = math.min(left or fl, fl) end
+		end
+	end
+	return left and (left - right) or nil
+end
+
 function Live.MapName(mapID)
 	local info = mapID and C_Map and try(C_Map.GetMapInfo, mapID)
 	return info and info.name

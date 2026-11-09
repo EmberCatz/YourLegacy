@@ -109,6 +109,9 @@ function Builders.general(body)
 		r.switch = Switch(r, "mapZone")
 	end
 	rows[#rows + 1] = r
+	r = Row(body, L["World map button"], L["A button on the world map with Your Legacy's map options."])
+	r.switch = Switch(r, "mapButton")
+	rows[#rows + 1] = r
 	r = Row(body, L["Sound for earned challenges"], L["Plays a sound from the game when you earn a Legacy challenge."], 54)
 	r.switch = Switch(r, "sound")
 	r.sound = T.Dropdown(r, 150, function()
