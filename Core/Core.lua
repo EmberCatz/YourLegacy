@@ -19,6 +19,7 @@ local DEFAULTS = {
 	classPlans = {}, -- [CLASS] = { race = "Troll", profs = { [skillLine] = true }, next = true } for classes not started yet
 	builds = {},     -- 0.9: saved Legacy tree builds, account-wide: { { name = "...", perks = { [nodeID] = rank } } }
 	roles = {},      -- 1.0: [Name-Realm] = "main" | "crafter" | "bank" | "ignore" (nil = alt; Data.ROLES)
+	bossNames = {},  -- 1.0: [creatureID] = name, learned from ENCOUNTER_END for creatures a dungeon's credit needs
 	settings = {
 		scale = 1,           -- window scale
 		minimap = true,      -- show the minimap button
@@ -38,6 +39,7 @@ local DEFAULTS = {
 		announceGuild = false, -- also post earned challenges to guild chat
 		remindUnspent = true,  -- chat line at login when Legacy points are unspent
 		remindRewards = true,  -- chat line at login when an unlocked reward waits at Innkeeper Wiley
+		instanceHelper = true, -- chat lines inside a dungeon or raid that counts toward a challenge (Core/Instance.lua)
 	},
 	-- status: open | progress | done | all; section: the Challenges tab ("" = its overview);
 	-- sort (1.0): game | closest | points | name, for the rows inside a section
@@ -341,7 +343,7 @@ function Core:Capture()
 	self:Print(L["game state captured. Type /reload to write it to SavedVariables."])
 end
 
-local HELP = L["Commands:"] .. " /yl, /yl overview|challenges|roster|tree, /yl options, /yl status, /yl export, /yl capture, /yl shots, /yl reset"
+local HELP = L["Commands:"] .. " /yl, /yl overview|challenges|roster|tree, /yl options, /yl status, /yl here, /yl export, /yl capture, /yl shots, /yl reset"
 
 SLASH_YOURLEGACY1 = "/yourlegacy"
 SLASH_YOURLEGACY2 = "/yl"
@@ -360,6 +362,8 @@ SlashCmdList.YOURLEGACY = function(msg)
 		if ns.Export then ns.Export:Show() end
 	elseif msg == "capture" then
 		Core:Capture()
+	elseif msg == "here" then
+		if ns.Instance then ns.Instance:Report(true) end
 	elseif msg == "shots" then
 		if ns.Shots then ns.Shots:Start() end
 	elseif msg == "reset" then

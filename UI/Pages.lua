@@ -171,22 +171,32 @@ function P.ShowChallengeTooltip(owner, item)
 	local rule, ruleKey = P.CreditRule(item, criteria)
 	if rule then GameTooltip:AddLine(rule .. P.RuleTag(ruleKey), T.unpack(C.head)) end
 	local explored = ExplorationLines(item)
+	-- 1.0 instance helper: inside a dungeon or raid this challenge counts for, its parts there are gold
+	local placeName, hereKeys
+	if ns.Instance then placeName, hereKeys = ns.Instance.Here(item.id) end
+	if placeName and not item.completed then
+		GameTooltip:AddLine(string.format(L["You're in %s."], placeName), T.unpack(C.head))
+	end
 	if #criteria > 1 and not explored then
 		GameTooltip:AddLine(" ")
 		local byKey, others = PartsByCharacter(item)
 		local myName = Live.PlayerName()
 		for i, c in ipairs(criteria) do
 			if i > 12 then GameTooltip:AddLine(string.format(L["and %d more"], #criteria - 12), 0.56, 0.6, 0.72) break end
+			-- the boss that gives a dungeon's credit, once a fight showed it (Core/Instance.lua)
+			local boss = ns.Instance and ns.Instance.BossFor(c)
+			local text = boss and string.format("%s (%s)", c.text, boss) or c.text
+			local hereColor = hereKeys and hereKeys[c.key] and not c.done and C.head
 			if others then
 				-- who has done this part: the live character first, then the saved ones
 				local names = {}
 				if c.done and myName then names[1] = myName end
 				for _, n in ipairs(byKey[c.key] or {}) do names[#names + 1] = n end
-				local r, g, b = T.unpack(#names > 0 and C.teal or C.muted)
-				GameTooltip:AddLine(#names > 0 and string.format(L["%s: %s"], c.text, table.concat(names, ", ")) or c.text, r, g, b)
+				local r, g, b = T.unpack(hereColor or (#names > 0 and C.teal) or C.muted)
+				GameTooltip:AddLine(#names > 0 and string.format(L["%s: %s"], text, table.concat(names, ", ")) or text, r, g, b)
 			else
-				local r, g, b = T.unpack(c.done and C.teal or C.muted)
-				GameTooltip:AddLine((c.done and L["Done: "] or "") .. c.text, r, g, b)
+				local r, g, b = T.unpack(hereColor or (c.done and C.teal) or C.muted)
+				GameTooltip:AddLine((c.done and L["Done: "] or "") .. text, r, g, b)
 			end
 		end
 	end

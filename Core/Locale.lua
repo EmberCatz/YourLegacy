@@ -413,6 +413,24 @@ ns.LOCALES.deDE = {
 	["Hide ignored characters"] = "Ignorierte Charaktere ausblenden",
 	["Show 1 ignored character"] = "1 ignorierten Charakter zeigen",
 	["Show %d ignored characters"] = "%d ignorierte Charaktere zeigen",
+	-- 1.0 instance helper
+	["Dungeon and raid help"] = "Hilfe in Dungeons und Schlachtzügen",
+	["In a dungeon or raid, say which challenge it counts for and what's left."] = "Im Dungeon oder Schlachtzug: wofür er zählt und was noch fehlt.",
+	["%s counts toward %s: %d of %d bosses left."] = "%s zählt für %s: noch %d von %d Bossen.",
+	["Bosses still to kill: %s"] = "Noch zu besiegen: %s",
+	["%s counts toward %s."] = "%s zählt für %s.",
+	["%s already counts toward %s. %d of %d dungeons left elsewhere."] = "%s zählt schon für %s. Noch %d von %d Dungeons woanders.",
+	["%s counts toward %s and still needs a clear. %d of %d dungeons left."] = "%s zählt für %s und fehlt noch. Noch %d von %d Dungeons.",
+	["Still needed here: %s"] = "Hier fehlt noch: %s",
+	["Killing %s gives the credit."] = "Der Sieg über %s bringt die Anrechnung.",
+	["%s now counts toward %s. %d of %d dungeons left."] = "%s zählt jetzt für %s. Noch %d von %d Dungeons.",
+	["%s is done for %s: %d of %d bosses left."] = "%s ist erledigt für %s: noch %d von %d Bossen.",
+	["%s died, but the clear of %s didn't count toward %s."] = "%s ist besiegt, aber %s wurde für %s nicht angerechnet.",
+	["You're above level %d, so clears here may not count."] = "Du bist über Stufe %d, hier zählt ein Abschluss vielleicht nicht.",
+	["You're not in a dungeon or raid."] = "Du bist in keinem Dungeon und keinem Schlachtzug.",
+	["%s doesn't count toward any Legacy challenge."] = "%s zählt für keine Vermächtnisherausforderung.",
+	["%s counts toward %s, which you've already earned."] = "%s zählt für %s, die du schon hast.",
+	["You're in %s."] = "Du bist in %s.",
 }
 
 local strings = ns.LOCALES[GetLocale and GetLocale() or "enUS"]

@@ -213,6 +213,78 @@ function Live.NestedParts(achievementID, depth, seen)
 	return out
 end
 
+-- 1.0 instance helper. The dungeon or raid the character is in, or nil outside one (battlegrounds and the open
+-- world don't count). GetInstanceInfo: name 1st, instanceType 2nd, instanceID 8th (Blizzard_FrameXML/InstanceDifficulty.lua).
+function Live.Instance()
+	local inside, kind = try(IsInInstance)
+	if not inside or (kind ~= "party" and kind ~= "raid") then return nil end
+	local name, _, _, _, _, _, _, instanceID = try(GetInstanceInfo)
+	if type(name) ~= "string" or name == "" then return nil end
+	return { name = name, kind = kind, id = instanceID }
+end
+
+function Live.Level() return try(UnitLevel, "player") or 1 end
+
+-- `needle` sits in `hay` as whole words ("ragefire chasm" in "ragefire chasm or hall of thanes", not "lair" in
+-- "lairs"). Bytes above 127 count as letters, so accented names stay whole in every language.
+local function IsWordByte(b) return b and (b >= 128 or (b >= 48 and b <= 57) or (b >= 65 and b <= 90) or (b >= 97 and b <= 122)) end
+local function HasPhrase(hay, needle)
+	if needle == "" then return false end
+	local from = 1
+	while true do
+		local s, e = hay:find(needle, from, true)
+		if not s then return false end
+		if not IsWordByte(hay:byte(s - 1)) and not IsWordByte(hay:byte(e + 1)) then return true end
+		from = s + 1
+	end
+end
+Live.HasPhrase = HasPhrase -- for tests
+
+-- A challenge with no parts whose description names the raid's boss ("Defeat Onyxia." in Onyxia's Lair): a word
+-- of five letters or more that starts a word of the instance's name. Only tried in raids, only without parts.
+local function NamesPlace(description, place)
+	for word in ns.Lower(description or ""):gmatch("[%a\128-\255]+") do
+		if #word >= 5 then
+			for pw in place:gmatch("[%a\128-\255]+") do
+				if pw:sub(1, #word) == word then return true end
+			end
+		end
+	end
+	return false
+end
+
+-- The challenges an instance counts toward, read from the challenges' own text, so no instance or achievement IDs
+-- are needed and every client language works (capture 2026-11-06):
+--   raids: "Defeat the following encounters in Hyjal Summit." and one part per boss → whole = true, every part;
+--   dungeons: one part per dungeon, named after it ("Wailing Caverns", "Ragefire Chasm or Hall of Thanes",
+--   "Scarlet Monastery: Library") → the parts that name this instance or that it names.
+-- Criteria are read here, on demand: once per loading screen into an instance, never per refresh.
+-- Returns { { item, parts, criteria, whole } }.
+function Live.InstanceChallenges(name, kind)
+	local place, out = ns.Lower(name or ""), {}
+	if place == "" then return out end
+	for _, g in ipairs(Live.Challenges().groups) do
+		for _, item in ipairs(g.items) do
+			local criteria = Live.Criteria(item.id)
+			local whole = HasPhrase(ns.Lower(item.description or ""), place)
+			local parts = {}
+			if whole then
+				for _, c in ipairs(criteria) do parts[#parts + 1] = c end
+			else
+				for _, c in ipairs(criteria) do
+					local text = ns.Lower(c.text)
+					if c.type ~= ACH_TYPE and (HasPhrase(text, place) or (#text >= 4 and HasPhrase(place, text))) then
+						parts[#parts + 1] = c
+					end
+				end
+				if #criteria == 0 and kind == "raid" and NamesPlace(item.description, place) then whole = true end
+			end
+			if whole or #parts > 0 then out[#out + 1] = { item = item, parts = parts, criteria = criteria, whole = whole } end
+		end
+	end
+	return out
+end
+
 -- What this character has done on multi-part challenges, read when the snapshot is taken (login, logout, an
 -- earned criterion), never on a refresh: explore = { [zone key] = true } for the nested challenge (Explorer),
 -- parts = { [achievementID] = { [criteria key] = true } } for every challenge with several parts.
@@ -706,7 +778,8 @@ function Live.Capture()
 		time = time and time() or 0, build = select(2, try(GetBuildInfo)), hardcore = Live.IsHardcore(),
 		player = { name = try(UnitName, "player"), realm = try(GetRealmName), class = classToken, race = try(UnitRace, "player"), level = try(UnitLevel, "player"),
 			gear = Live.Gear(), money = try(GetMoney), zone = try(GetRealZoneText), guild = try(GetGuildInfo, "player"),
-			itemLevel = try(GetAverageItemLevel), xp = try(UnitXP, "player"), xpMax = try(UnitXPMax, "player"), rested = try(GetXPExhaustion) },
+			itemLevel = try(GetAverageItemLevel), xp = try(UnitXP, "player"), xpMax = try(UnitXPMax, "player"), rested = try(GetXPExhaustion),
+			instance = Live.Instance() }, -- 1.0: to check the instance helper's name match in game
 		legacy = { earned = Live.Earned(), max = Live.MaxAvailable(), rewards = rewards },
 		categories = cats, trees = trees, professions = profs, fonts = fonts,
 	}

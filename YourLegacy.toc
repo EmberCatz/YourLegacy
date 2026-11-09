@@ -14,6 +14,7 @@ Core\Locale.lua
 Core\Data.lua
 Core\Live.lua
 Core\Core.lua
+Core\Instance.lua
 UI\Theme.lua
 UI\Window.lua
 UI\Pages.lua

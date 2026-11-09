@@ -97,6 +97,9 @@ function Builders.general(body)
 	r = Row(body, L["Remind me of rewards to collect"], L["A chat line at login when a reward waits for you at Innkeeper Wiley in Ratchet."])
 	r.switch = Switch(r, "remindRewards")
 	rows[#rows + 1] = r
+	r = Row(body, L["Dungeon and raid help"], L["In a dungeon or raid, say which challenge it counts for and what's left."])
+	r.switch = Switch(r, "instanceHelper")
+	rows[#rows + 1] = r
 	r = Row(body, L["Sound for earned challenges"], L["Plays a sound from the game when you earn a Legacy challenge."], 54)
 	r.switch = Switch(r, "sound")
 	r.sound = T.Dropdown(r, 150, function()

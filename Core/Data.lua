@@ -187,3 +187,9 @@ Data.DUNGEON_BRACKETS = {
 -- (check 4) shows it doesn't; then the warning goes live. Margin: levels before the top where it starts.
 Data.OUTLEVEL_WARNING = false
 Data.OUTLEVEL_MARGIN = 3
+
+-- 1.0 instance helper: criteria types in the dungeon and raid challenges (capture 2026-11-06). Kill = a creature
+-- (assetID = its creature ID: Wailing Caverns is 3654, Mutanus). Encounter = a boss fight (Hyjal's Time-Lost
+-- Battalion, type 165, asset 3339). UNVERIFIED: that 165's asset is the encounterID ENCOUNTER_END reports.
+Data.CRITERIA_KILL = 0
+Data.CRITERIA_ENCOUNTER = 165
