@@ -105,16 +105,15 @@ Data.SOUNDS = {
 Data.PROF_RANKS = { { 75, "Apprentice" }, { 150, "Journeyman" }, { 225, "Expert" }, { 300, "Artisan" } }
 -- Class challenge milestones (levels).
 Data.LEVEL_MILESTONES = { 25, 45, 60 }
-Data.SKILL_MILESTONES = { 150, 225, 300 } -- the crafting challenges' targets (Novice/Journeyman ranks earn none)
 
--- 1.0: what a character is for (db.roles; nil = alt). Bank and Ignore leave Play next; Ignore also hides the
--- roster card behind "Show ignored"; a Crafter only counts for its crafts.
+-- 1.0: what a character is for (db.roles; nil = alt), shown on its roster card. Ignore also hides the card behind
+-- "Show ignored". (Play next, which the other roles fed, was removed on the user's call, 2026-11-09.)
 Data.ROLES = {
-	{ key = "main", name = "Main", desc = "Your main. Goes first when two characters are equally close." },
-	{ key = "alt", name = "Alt", desc = "Counts everywhere." },
-	{ key = "crafter", name = "Crafter", desc = "Only its crafts count in Play next." },
-	{ key = "bank", name = "Bank", desc = "Left out of Play next." },
-	{ key = "ignore", name = "Ignore", desc = "Left out of Play next and hidden on the Roster." },
+	{ key = "main", name = "Main", desc = "Your main character." },
+	{ key = "alt", name = "Alt", desc = "Another character you play." },
+	{ key = "crafter", name = "Crafter", desc = "Kept for its professions." },
+	{ key = "bank", name = "Bank", desc = "Holds your things." },
+	{ key = "ignore", name = "Ignore", desc = "Hidden on the Roster." },
 }
 
 -- One-line descriptions of the perk presets (Legacy Tree).

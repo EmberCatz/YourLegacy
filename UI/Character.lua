@@ -213,7 +213,7 @@ local function BuildCharacter()
 	f.info.guild.label:SetText(L["Guild"])
 	f.info.itemLevel.label:SetText(L["Item level"])
 	f.info.spent.label:SetText(L["Legacy points spent"])
-	-- 1.0: what the character is for (Data.ROLES); Bank and Ignore leave Play next, Ignore leaves the Roster
+	-- 1.0: what the character is for (Data.ROLES), shown on its card; Ignore hides the card on the Roster
 	f.role = InfoRow(body, midW)
 	f.role:SetHeight(26)
 	f.role:SetPoint("TOPLEFT", midX, top - 2 - #keys * 18 - 6)
