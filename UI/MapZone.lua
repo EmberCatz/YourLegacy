@@ -15,6 +15,7 @@ ns.MapZone = Z
 Z.TICK = 0.25                     -- seconds between checks while the map is open
 Z.WIDTH, Z.ROW, Z.MAX_ROWS = 260, 16, 10
 Z.MARGIN = 8                      -- from the map's edge
+Z.STACK_W = 32                    -- the column of map buttons down the top-left corner (3 + 32 px)
 Z.TOP = 64                        -- header (30) + bar (24) + gap: where the first line starts
 Z.CORNERS = { "TOPLEFT", "TOPRIGHT", "BOTTOMLEFT", "BOTTOMRIGHT" }
 Z.LEGACY_FOREVER = "LegacyForever" -- cjber's addon shows zone progress too; ours stays off beside it unless chosen
@@ -145,8 +146,8 @@ local function Place(parent)
 	local corner = Z.Corner()
 	local x = corner:find("LEFT") and Z.MARGIN or -Z.MARGIN
 	local y = corner:find("TOP") and -Z.MARGIN or Z.MARGIN
-	-- top right: under the map buttons (ours and Blizzard's)
-	if corner == "TOPRIGHT" then y = y - ns.MapButton.SIZE - 4 end
+	-- top left: right of the stack of map buttons (Blizzard's, ours and other addons')
+	if corner == "TOPLEFT" then x = x + Z.STACK_W end
 	box:ClearAllPoints()
 	box:SetPoint(corner, parent, corner, x, y)
 end

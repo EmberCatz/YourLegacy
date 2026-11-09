@@ -296,22 +296,37 @@ function Live.MapView()
 	return canvas, try(map.GetMapID, map)
 end
 
--- The left edge of Blizzard's own buttons along the map's top-right corner (WorldMapFrame.overlayFrames, the
--- frames Blizzard_WorldMap adds with AddOverlayFrame), as an x offset from the container's right edge, so our map
--- button can sit beside them. Reads positions only. nil when none are found.
-function Live.MapOverlayLeft(container)
-	local frames = type(WorldMapFrame) == "table" and WorldMapFrame.overlayFrames
-	if type(frames) ~= "table" or not container then return nil end
-	local top, right = try(container.GetTop, container), try(container.GetRight, container)
-	if not (top and right) then return nil end
-	local left
+-- Krowi_WorldMapButtons, the shared library that stacks map buttons down the top-left corner on Forever (Questie,
+-- AllTheThings and GatherLite embed it), when another addon has loaded it. Same pattern as LibDBIcon (UI/Minimap.lua).
+Live.MAP_BUTTON_LIB = "Krowi_WorldMapButtons-1.4"
+function Live.MapButtonLibrary()
+	local stub = _G.LibStub
+	return type(stub) == "table" and stub.GetLibrary and stub:GetLibrary(Live.MAP_BUTTON_LIB, true) or nil
+end
+
+-- Without that library: where the next button of the top-left stack goes. Blizzard's own small buttons there
+-- (Forever moves the map pin button to the top-left; WorldMapFrame.overlayFrames, added with AddOverlayFrame) and
+-- buttons other addons put there: the y offset below the lowest one, 0 when the corner is free. Reads positions only.
+-- The floor dropdown (160 wide) isn't a button and doesn't count.
+function Live.MapButtonSlot(container)
+	local top, left = container and try(container.GetTop, container), container and try(container.GetLeft, container)
+	if not (top and left) then return 0 end
+	local frames = {}
+	for _, f in ipairs(type(WorldMapFrame) == "table" and type(WorldMapFrame.overlayFrames) == "table" and WorldMapFrame.overlayFrames or {}) do
+		frames[#frames + 1] = f
+	end
+	local lib = Live.MapButtonLibrary()
+	for _, f in ipairs(lib and type(lib.Buttons) == "table" and lib.Buttons or {}) do frames[#frames + 1] = f end
+	local y = 0
 	for _, f in ipairs(frames) do
 		if type(f) == "table" and type(f.IsShown) == "function" and try(f.IsShown, f) then
-			local fl, ft = try(f.GetLeft, f), try(f.GetTop, f)
-			if fl and ft and ft > top - 48 and fl > right - 300 then left = math.min(left or fl, fl) end
+			local fl, ft, fb, fw = try(f.GetLeft, f), try(f.GetTop, f), try(f.GetBottom, f), try(f.GetWidth, f)
+			if fl and ft and fb and fw and fw <= 40 and fl < left + 40 and ft <= top + 2 and ft > top - 300 then
+				y = math.min(y, fb - top)
+			end
 		end
 	end
-	return left and (left - right) or nil
+	return y
 end
 
 function Live.MapName(mapID)
