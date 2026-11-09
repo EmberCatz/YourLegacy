@@ -18,6 +18,7 @@ local DEFAULTS = {
 	status = {},     -- [Name-Realm] = "fallen" for a Hardcore character that died (set on death, editable)
 	classPlans = {}, -- [CLASS] = { race = "Troll", profs = { [skillLine] = true }, next = true } for classes not started yet
 	builds = {},     -- 0.9: saved Legacy tree builds, account-wide: { { name = "...", perks = { [nodeID] = rank } } }
+	roles = {},      -- 1.0: [Name-Realm] = "main" | "crafter" | "bank" | "ignore" (nil = alt; Data.ROLES)
 	settings = {
 		scale = 1,           -- window scale
 		minimap = true,      -- show the minimap button
@@ -40,7 +41,7 @@ local DEFAULTS = {
 	},
 	-- status: open | progress | done | all; section: the Challenges tab ("" = its overview);
 	-- sort (1.0): game | closest | points | name, for the rows inside a section
-	ui = { tab = "overview", status = "open", section = "", sort = "game" },
+	ui = { tab = "overview", status = "open", section = "", sort = "game", showIgnored = false },
 }
 
 local function ApplyDefaults(db, defaults)
@@ -195,6 +196,7 @@ Core.REMIND_DELAY = 8
 function Core:ForgetCharacter(key)
 	if self.db and self.db.characters[key] and key ~= Live.CharacterKey() then
 		self.db.characters[key] = nil
+		self.db.roles[key] = nil
 		Live.Invalidate()
 		if ns.UI then ns.UI:Refresh() end
 		return true

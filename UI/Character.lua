@@ -205,7 +205,7 @@ local function BuildCharacter()
 	local keys = { "gold", "zone", "guild", "itemLevel", "spent" }
 	for i, k in ipairs(keys) do
 		local r = InfoRow(body, midW)
-		r:SetPoint("TOPLEFT", midX, top - 2 - (i - 1) * 20)
+		r:SetPoint("TOPLEFT", midX, top - 2 - (i - 1) * 18)
 		f.info[k] = r
 	end
 	f.info.gold.label:SetText(L["Gold"])
@@ -213,9 +213,25 @@ local function BuildCharacter()
 	f.info.guild.label:SetText(L["Guild"])
 	f.info.itemLevel.label:SetText(L["Item level"])
 	f.info.spent.label:SetText(L["Legacy points spent"])
+	-- 1.0: what the character is for (Data.ROLES); Bank and Ignore leave Play next, Ignore leaves the Roster
+	f.role = InfoRow(body, midW)
+	f.role:SetHeight(26)
+	f.role:SetPoint("TOPLEFT", midX, top - 2 - #keys * 18 - 6)
+	f.role.label:SetText(L["Role"])
+	f.role.value:Hide()
+	f.roleDrop = T.Dropdown(f.role, 112, function()
+		local out = {}
+		for _, r in ipairs(Data.ROLES) do out[#out + 1] = { r.key, L[r.name], desc = L[r.desc] } end
+		return out
+	end, function(key)
+		db().roles[f.key] = key ~= "alt" and key or nil
+		UI:Refresh()
+		Character:Refresh()
+	end)
+	f.roleDrop:SetPoint("RIGHT", f.role, "RIGHT", -8, 0)
 
 	-- professions: name, rank, a bar with the 75/150/225 rank ticks
-	local profTop = top - 2 - #keys * 20 - 12
+	local profTop = top - 2 - #keys * 18 - 12 - 32
 	f.profHead = T.Text(body, T.F.label, C.muted)
 	f.profHead:SetPoint("TOPLEFT", midX, profTop)
 	f.profHead:SetText(L["Professions"])
@@ -223,7 +239,7 @@ local function BuildCharacter()
 	for i = 1, 5 do
 		local p = CreateFrame("Frame", nil, body)
 		p:SetSize(midW, 26)
-		p:SetPoint("TOPLEFT", midX, profTop - 16 - (i - 1) * 28)
+		p:SetPoint("TOPLEFT", midX, profTop - 16 - (i - 1) * 25)
 		p.name = T.Text(p, T.F.small, C.text)
 		p.name:SetPoint("TOPLEFT")
 		p.value = T.Text(p, T.F.small, C.ink2, "RIGHT")
@@ -294,6 +310,7 @@ local function RefreshCharacter(f)
 	f.info.guild.value:SetText(ch.guild or "–")
 	f.info.itemLevel.value:SetText(ch.itemLevel and string.format("%.1f", ch.itemLevel) or "–")
 	f.info.spent.value:SetText(string.format("%d / %d", ch.spent or 0, Data.SPEND_CAP))
+	f.roleDrop:SetValue(ns.Pages.Role(f.key))
 
 	local profs = ch.professions or {}
 	for i, row in ipairs(f.profs) do

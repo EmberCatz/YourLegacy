@@ -312,6 +312,170 @@ function P.CreateChallengeRow(parent, width, withDescription)
 	return r
 end
 
+---------------------------------------------------------------- Play next (1.0)
+-- For each character, the open challenges it can move: its class's next level milestone, its crafts' next skill
+-- milestone, and Explorer. Progress is how far along the step is (level / target, skill / target, zones done /
+-- zones), the same measure "Closest to done" uses, so nothing guesses play time. Rested XP only breaks ties.
+function P.Role(key) return db().roles[key] or "alt" end
+
+-- Open challenges by subgroup and target ("Warlock" → { [25] = item, ... }), worked out once per challenge list.
+local openFor, openCache
+local function OpenTargets()
+	local challenges = Live.Challenges()
+	if openFor == challenges then return openCache end
+	openCache, openFor = {}, challenges
+	for _, g in ipairs(challenges.groups) do
+		for _, item in ipairs(g.items) do
+			local target = tonumber((item.description or ""):match("(%d+)"))
+			if item.sub and target and not item.completed then
+				openCache[item.sub] = openCache[item.sub] or {}
+				openCache[item.sub][target] = item
+			end
+		end
+	end
+	return openCache
+end
+
+local function OpenChallenge(id)
+	for _, g in ipairs(Live.Challenges().groups) do
+		for _, item in ipairs(g.items) do if item.id == id then return not item.completed and item or nil end end
+	end
+end
+
+-- Every step a character can take, best first: { item, ratio, reason, blocked }.
+function P.Steps(key, ch)
+	local steps, open, role = {}, OpenTargets(), P.Role(key)
+	local level = ch.level or 1
+	if role ~= "crafter" then
+		for _, target in ipairs(Data.LEVEL_MILESTONES) do
+			local item = open[Live.ClassName(ch.class)] and open[Live.ClassName(ch.class)][target]
+			if item and level < target then
+				local togo = target - level
+				steps[#steps + 1] = { item = item, ratio = level / target,
+					reason = togo == 1 and string.format(L["1 level to %d"], target) or string.format(L["%d levels to %d"], togo, target) }
+				break
+			end
+		end
+		local explorer = ch.exploreID and OpenChallenge(ch.exploreID)
+		if explorer and (ch.exploreTotal or 0) > 0 then
+			local done = 0
+			for _ in pairs(ch.explore or {}) do done = done + 1 end
+			if done > 0 then
+				steps[#steps + 1] = { item = explorer, ratio = done / ch.exploreTotal,
+					reason = string.format(L["%d of %d zones explored"], done, ch.exploreTotal) }
+			end
+		end
+	end
+	for _, p in ipairs(ch.professions or {}) do
+		local byTarget = p.craft and open[p.name]
+		for _, target in ipairs(byTarget and Data.SKILL_MILESTONES or {}) do
+			local item = byTarget[target]
+			if item and (p.skill or 0) < target then
+				local gate = Data.PROF_GATES[target]
+				local blocked = gate and level < gate
+				steps[#steps + 1] = { item = item, ratio = (p.skill or 0) / target, blocked = blocked and true or false,
+					reason = blocked and string.format(L["%s %d needs level %d"], p.name, target, gate)
+						or string.format(L["%s %d / %d"], p.name, p.skill or 0, target) }
+				break
+			end
+		end
+	end
+	for _, st in ipairs(steps) do st.blocked = st.blocked and true or false end -- a strict order needs true/false, never nil
+	table.sort(steps, function(a, b)
+		if a.blocked ~= b.blocked then return not a.blocked end
+		if a.ratio ~= b.ratio then return a.ratio > b.ratio end
+		return a.item.id < b.item.id
+	end)
+	return steps
+end
+
+-- A rested bar that's full (1.5 levels of XP, the game's cap) is worth saying; it's only ever a tie-breaker.
+local function RestedShare(ch)
+	if (ch.level or 1) >= 60 or not (ch.rested and ch.xpMax and ch.xpMax > 0) then return 0 end
+	return math.min(1, ch.rested / (ch.xpMax * 1.5))
+end
+P.RestedShare = RestedShare
+
+-- Characters ranked by their best step. Bank and Ignore roles and fallen Hardcore characters are left out.
+-- Returns { { key, ch, steps, best, rested } }.
+function P.PlayNext()
+	local out = {}
+	for key, ch in pairs(db().characters) do
+		local role = P.Role(key)
+		local fallen = ch.ruleset == "hardcore" and db().status[key] == "fallen"
+		if role ~= "bank" and role ~= "ignore" and not fallen then
+			local steps = P.Steps(key, ch)
+			if steps[1] then out[#out + 1] = { key = key, ch = ch, steps = steps, best = steps[1], rested = RestedShare(ch), main = role == "main" } end
+		end
+	end
+	table.sort(out, function(a, b)
+		if a.best.blocked ~= b.best.blocked then return not a.best.blocked end
+		if a.best.ratio ~= b.best.ratio then return a.best.ratio > b.best.ratio end
+		if a.rested ~= b.rested then return a.rested > b.rested end
+		if a.main ~= b.main then return a.main end
+		return (a.ch.name or "") < (b.ch.name or "")
+	end)
+	return out
+end
+
+-- A Play next row: the class icon, the name in its class colour with the challenge under it, the reason and a
+-- heat bar on the right. Hover lists every step; a click opens the character's panel.
+function P.CreatePlayRow(parent, width)
+	local r = CreateFrame("Button", nil, parent)
+	r:SetSize(width, 38)
+	T.RowBackground(r)
+	r.tile = T.Tile(r, 24)
+	r.tile:SetPoint("LEFT", 4, 0)
+	r.name = T.Text(r, T.F.bodyL, C.ink)
+	r.name:SetPoint("TOPLEFT", r.tile, "TOPRIGHT", 10, 2)
+	r.name:SetPoint("RIGHT", r, "RIGHT", -170, 0)
+	r.name:SetWordWrap(false)
+	r.what = T.Text(r, T.F.small, C.muted)
+	r.what:SetPoint("TOPLEFT", r.name, "BOTTOMLEFT", 0, -2)
+	r.what:SetPoint("RIGHT", r, "RIGHT", -170, 0)
+	r.what:SetWordWrap(false)
+	r.reason = T.Text(r, T.F.body, C.ink2, "RIGHT")
+	r.reason:SetPoint("RIGHT", -8, 4)
+	r.line = T.Bar(r, 140, 3)
+	r.line:SetPoint("TOPRIGHT", r, "RIGHT", -8, -8)
+	r:SetScript("OnClick", function(self)
+		if ns.Character and ns.Character:Shown() ~= self.entry.key then ns.Character:Toggle(self.entry.key) end
+	end)
+	r:SetScript("OnEnter", function(self)
+		local e = self.entry
+		GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+		GameTooltip:SetText(e.ch.name or "", T.ClassColor(e.ch.class))
+		for i, step in ipairs(e.steps) do
+			if i > 5 then break end
+			local cr, cg, cb = T.unpack(step.blocked and C.warn or C.ink2)
+			GameTooltip:AddDoubleLine(step.item.name, step.reason, cr, cg, cb, cr, cg, cb)
+		end
+		if e.rested >= 0.99 then GameTooltip:AddLine(L["Rested bar full."], T.unpack(C.accent)) end
+		GameTooltip:AddLine(L["Click for this character's details."], T.unpack(C.muted))
+		GameTooltip:Show()
+	end)
+	r:SetScript("OnLeave", function() GameTooltip:Hide() end)
+	function r:SetEntry(e)
+		self.entry = e
+		local cr, cg, cb = T.ClassColor(e.ch.class)
+		if P.ClassIcon(self.tile.icon, e.ch.class) then
+			self.tile.icon:SetTexCoord(0, 1, 0, 1)
+			self.tile.icon:SetVertexColor(1, 1, 1)
+		else
+			self.tile:SetIcon("glyph:Shield", { cr, cg, cb, 1 })
+		end
+		self.tile:SetState(C.rule, false)
+		self.name:SetText((e.ch.name or "") .. (e.ch.ruleset == "hardcore" and ("  " .. P.RulesetTag("hardcore")) or ""))
+		self.name:SetTextColor(cr, cg, cb)
+		self.what:SetText(e.best.item.name)
+		self.reason:SetText(e.best.reason)
+		self.reason:SetTextColor(T.unpack(e.best.blocked and C.warn or C.ink2))
+		self.line:SetShown(not e.best.blocked)
+		self.line:SetHeatValue(e.best.ratio)
+	end
+	return r
+end
+
 -- The game's class icon atlas (classicon-warlock) when the client has it.
 function P.ClassIcon(texture, token)
 	local atlas = "classicon-" .. token:lower()

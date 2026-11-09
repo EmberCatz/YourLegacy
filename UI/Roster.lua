@@ -14,6 +14,7 @@ local FULL_W = UI.CONTENT_W - 14 -- inside the scroll
 local GAP, CARD_MIN_W, CARD_H, PLAN_H = 12, 250, 228, 66
 local BANNER_H = PLAN_H -- a character card's banner: the card art at the height it's drawn for
 local DOCK_W = 404 + 12          -- the docked panel and its gap (UI/Character.lua)
+local PLAY_MAX = 4               -- Play next rows above the cards
 
 -- Add a field to Blizzard's table; never reassign the global itself (that would taint it).
 StaticPopupDialogs.YOURLEGACY_FORGET = {
@@ -92,6 +93,16 @@ end
 
 local function Suggested(token, skillLine)
 	return Data.SUGGESTED_CRAFTS[token] and Data.SUGGESTED_CRAFTS[token][skillLine] or false
+end
+
+-- ", Bank" after race and class for any role but Alt (the default says nothing).
+local function RoleTag(key)
+	local role = P.Role(key)
+	if role == "alt" then return "" end
+	for _, r in ipairs(Data.ROLES) do
+		if r.key == role then return ", " .. T.Hex(role == "main" and C.head or C.muted) .. L[r.name] .. "|r" end
+	end
+	return ""
 end
 
 local function CreateCharacterCard(parent)
@@ -301,10 +312,19 @@ local function BuildRoster(page)
 	local scroll, child = UI.Scroll(page, UI.CONTENT_W, UI.CONTENT_H)
 	scroll:SetPoint("TOPLEFT", 0, 0)
 	roster.scroll, roster.child = scroll, child
+	-- 1.0 Play next: the characters closest to a Legacy point (P.PlayNext), above the cards
+	roster.playH = T.Heading(child, L["Play next"], FULL_W)
+	roster.playRows = UI.Pool(child, function(parent) return P.CreatePlayRow(parent, 300) end)
 	roster.cards = UI.Pool(child, CreateCharacterCard)
 	roster.groupHeads = UI.Pool(child, function(parent) return T.Heading(parent, "", FULL_W) end)
 	roster.unstartedH = T.Heading(child, L["Classes you haven't started"], FULL_W)
 	roster.plans = UI.Pool(child, CreatePlanCard)
+	-- 1.0: characters with the Ignore role stay hidden until this is clicked
+	roster.ignored = T.TextButton(child, "", T.F.body)
+	roster.ignored:SetScript("OnClick", function()
+		db().ui.showIgnored = not db().ui.showIgnored
+		UI:Refresh()
+	end)
 	-- 0.9: who covers which craft (crafting professions only: gathering earns no Legacy points)
 	roster.cropsH = T.Heading(child, L["Crafts on the account"], FULL_W)
 	roster.crafts = UI.Pool(child, function(parent)
@@ -365,7 +385,8 @@ local function FillCard(card, entry)
 	-- Normal is the default, so only Hardcore is named (0.9.1: "Undead Warlock, Nor..." didn't fit beside the level)
 	card.sub:SetText(string.format(L["%s %s"], ch.race or "", Live.ClassName(token))
 		.. (ch.ruleset == "hardcore" and (", " .. P.RulesetTag(ch.ruleset)) or "")
-		.. (fallen and ("  " .. T.Hex(C.hc) .. L["Fallen"] .. "|r") or ""))
+		.. (fallen and ("  " .. T.Hex(C.hc) .. L["Fallen"] .. "|r") or "")
+		.. RoleTag(entry.key))
 	local level = ch.level or 1
 	card.level:SetText(level)
 	card.levelBar:SetHeatValue(level / 60)
@@ -451,6 +472,7 @@ end
 
 local function RefreshRoster()
 	roster.cards:Reset()
+	roster.playRows:Reset()
 	roster.groupHeads:Reset()
 	roster.plans:Reset()
 	-- the docked panel takes the right side; the cards reflow into what's left
@@ -459,17 +481,41 @@ local function RefreshRoster()
 	roster.scroll:SetWidth(docked and (UI.CONTENT_W - DOCK_W) or UI.CONTENT_W)
 	local cols, cardW = Columns(width)
 
-	local groups, started = { normal = {}, hardcore = {} }, {}
+	local groups, started, ignored = { normal = {}, hardcore = {} }, {}, 0
 	for key, ch in pairs(db().characters) do
-		local group = groups[ch.ruleset == "hardcore" and "hardcore" or "normal"]
-		group[#group + 1] = { key = key, real = ch }
 		started[ch.class] = true
+		if P.Role(key) == "ignore" then ignored = ignored + 1 end
+		if P.Role(key) ~= "ignore" or db().ui.showIgnored then
+			local group = groups[ch.ruleset == "hardcore" and "hardcore" or "normal"]
+			group[#group + 1] = { key = key, real = ch }
+		end
 	end
 	local function compare(a, b)
 		if (a.real.level or 0) ~= (b.real.level or 0) then return (a.real.level or 0) > (b.real.level or 0) end
 		return (a.real.name or "") < (b.real.name or "")
 	end
 	local y = 0
+	-- Play next: up to PLAY_MAX characters, two to a line when there's room
+	local next_ = P.PlayNext()
+	roster.playH:SetShown(#next_ > 0)
+	if #next_ > 0 then
+		roster.playH:SetWidth(width)
+		roster.playH:ClearAllPoints()
+		roster.playH:SetPoint("TOPLEFT", roster.child, "TOPLEFT", 0, -y)
+		roster.playH.hint:SetText(L["Closest to their next Legacy point"])
+		y = y + 34
+		local pcols = width >= 640 and 2 or 1
+		local rowW = math.floor((width - (pcols - 1) * GAP) / pcols)
+		local shown = math.min(#next_, PLAY_MAX)
+		for i = 1, shown do
+			local r = roster.playRows:Acquire()
+			r:SetWidth(rowW)
+			local col, row = (i - 1) % pcols, math.floor((i - 1) / pcols)
+			r:SetPoint("TOPLEFT", roster.child, "TOPLEFT", col * (rowW + GAP), -(y + row * 40))
+			r:SetEntry(next_[i])
+		end
+		y = y + math.ceil(shown / pcols) * 40 + 14
+	end
 	-- headings only when both rulesets are on the account; one kind needs no label
 	local split = #groups.normal > 0 and #groups.hardcore > 0
 	for _, ruleset in ipairs({ "normal", "hardcore" }) do
@@ -492,6 +538,16 @@ local function RefreshRoster()
 			FillCard(card, entry)
 		end
 		if #list > 0 then y = y + math.ceil(#list / cols) * (CARD_H + GAP) + 6 end
+	end
+
+	roster.ignored:SetShown(ignored > 0)
+	if ignored > 0 then
+		roster.ignored.Label:SetText(db().ui.showIgnored and L["Hide ignored characters"]
+			or (ignored == 1 and L["Show 1 ignored character"] or string.format(L["Show %d ignored characters"], ignored)))
+		roster.ignored:SetWidth(roster.ignored.Label:GetStringWidth() + 20)
+		roster.ignored:ClearAllPoints()
+		roster.ignored:SetPoint("TOPLEFT", roster.child, "TOPLEFT", -8, -y)
+		y = y + 32
 	end
 
 	y = CraftCoverage(y, width)
