@@ -431,13 +431,19 @@ ns.LOCALES.deDE = {
 	["%s doesn't count toward any Legacy challenge."] = "%s zählt für keine Vermächtnisherausforderung.",
 	["%s counts toward %s, which you've already earned."] = "%s zählt für %s, die du schon hast.",
 	["You're in %s."] = "Du bist in %s.",
-	-- 1.0 map badges
-	["World map marks"] = "Markierungen auf der Weltkarte",
-	["Marks dungeon and raid entrances that still count toward a challenge."] = "Markiert Eingänge, die noch für eine Herausforderung zählen.",
-	["Off by default while Legacy Forever is loaded, since it pins entrances too."] = "Aus, solange Legacy Forever geladen ist, das Eingänge selbst markiert.",
-	["Counts toward %s."] = "Zählt für %s.",
-	["%d of %d bosses left."] = "Noch %d von %d Bossen.",
-	["Still needs a clear. %d of %d dungeons left."] = "Fehlt noch. Noch %d von %d Dungeons.",
+	-- 1.0 zone progress on the world map
+	["Zone progress on the world map"] = "Gebietsfortschritt auf der Weltkarte",
+	["Shows the Legacy progress of the zone you open on the world map."] = "Zeigt den Vermächtnis-Fortschritt des Gebiets auf der Weltkarte.",
+	["Off by default while Legacy Forever is loaded, since it shows zone progress too."] = "Aus, solange Legacy Forever geladen ist, das ihn auch zeigt.",
+	["Legacy in %s"] = "Vermächtnis in %s",
+	["%s: %d of %d areas explored"] = "%s: %d von %d Orten erkundet",
+	["%s: %d of %d zones explored"] = "%s: %d von %d Gebieten erkundet",
+	["%s has explored all of it."] = "%s hat alles erkundet.",
+	["%s: needs a clear"] = "%s: fehlt noch",
+	["%s: %d wings left"] = "%s: noch %d Flügel",
+	["%s: %d of %d bosses left"] = "%s: noch %d von %d Bossen",
+	["%s: not done yet"] = "%s: noch offen",
+	["%s: done"] = "%s: erledigt",
 }
 
 local strings = ns.LOCALES[GetLocale and GetLocale() or "enUS"]

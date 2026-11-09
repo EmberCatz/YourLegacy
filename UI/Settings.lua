@@ -100,13 +100,13 @@ function Builders.general(body)
 	r = Row(body, L["Dungeon and raid help"], L["In a dungeon or raid, say which challenge it counts for and what's left."])
 	r.switch = Switch(r, "instanceHelper")
 	rows[#rows + 1] = r
-	-- next to Legacy Forever (which pins entrances itself) the marks are a separate choice, off by default
-	if ns.Live.AddOnLoaded(ns.MapBadges.LEGACY_FOREVER) then
-		r = Row(body, L["World map marks"], L["Off by default while Legacy Forever is loaded, since it pins entrances too."])
-		r.switch = Switch(r, "mapBadgesWithLegacyForever")
+	-- next to Legacy Forever (which shows zone progress itself) the box is a separate choice, off by default
+	if ns.Live.AddOnLoaded(ns.MapZone.LEGACY_FOREVER) then
+		r = Row(body, L["Zone progress on the world map"], L["Off by default while Legacy Forever is loaded, since it shows zone progress too."])
+		r.switch = Switch(r, "mapZoneWithLegacyForever")
 	else
-		r = Row(body, L["World map marks"], L["Marks dungeon and raid entrances that still count toward a challenge."])
-		r.switch = Switch(r, "mapBadges")
+		r = Row(body, L["Zone progress on the world map"], L["Shows the Legacy progress of the zone you open on the world map."])
+		r.switch = Switch(r, "mapZone")
 	end
 	rows[#rows + 1] = r
 	r = Row(body, L["Sound for earned challenges"], L["Plays a sound from the game when you earn a Legacy challenge."], 54)

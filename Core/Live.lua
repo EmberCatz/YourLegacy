@@ -285,15 +285,71 @@ function Live.InstanceChallenges(name, kind)
 	return out
 end
 
--- 1.0 map badges. The world map's canvas, the map it shows and its zoom, or nil while there's no world map.
--- MapCanvasMixin:GetCanvas / GetMapID / GetCanvasScale (Blizzard_MapCanvas/Blizzard_MapCanvas.lua, Forever). Reads
--- only: the badges never go through the map's data providers or pin pools (research/19-feature-plan.md #8).
+-- 1.0 zone progress on the world map. The map's canvas and the map it shows, or nil while there's no world map.
+-- MapCanvasMixin:GetCanvas / GetMapID (Blizzard_MapCanvas/Blizzard_MapCanvas.lua, Forever). Reads only: the box
+-- never goes through the map's data providers or pin pools (research/19-feature-plan.md #8).
 function Live.MapView()
 	local map = WorldMapFrame
 	if type(map) ~= "table" or type(map.GetCanvas) ~= "function" then return nil end
 	local canvas = try(map.GetCanvas, map)
 	if not canvas then return nil end
-	return canvas, try(map.GetMapID, map), try(map.GetCanvasScale, map) or 1
+	return canvas, try(map.GetMapID, map)
+end
+
+function Live.MapName(mapID)
+	local info = mapID and C_Map and try(C_Map.GetMapInfo, mapID)
+	return info and info.name
+end
+
+-- The exploration challenge's tree by name (capture 2026-11-06: Explorer → "Explorer" (Explore Azeroth) →
+-- "Kalimdor" (Explore Kalimdor) → "Ashenvale" (Explore Ashenvale) → its areas). Each criterion that is an
+-- achievement names a map: lowercased criterion text and achievement name → { id, key, explorerID, depth }.
+-- key is the criterion's key in its parent list (what roster snapshots keep in ch.explore). Built once a session.
+local exploreIndex
+function Live.ExploreIndex()
+	if exploreIndex then return exploreIndex end
+	local index = {}
+	local function walk(id, explorerID, depth)
+		if depth > 5 then return end
+		for _, c in ipairs(Live.Criteria(id)) do
+			if c.type == ACH_TYPE and (c.assetID or 0) > 0 then
+				local node = { id = c.assetID, key = c.key, explorerID = explorerID, depth = depth }
+				index[ns.Lower(c.text)] = index[ns.Lower(c.text)] or node
+				local _, name = try(GetAchievementInfo, c.assetID)
+				if name then index[ns.Lower(name)] = index[ns.Lower(name)] or node end
+				walk(c.assetID, explorerID, depth + 1)
+			end
+		end
+	end
+	for _, g in ipairs(Live.Challenges().groups) do
+		for _, item in ipairs(g.items) do
+			if IsNested(item.id) then walk(item.id, item.id, 1) end
+		end
+	end
+	exploreIndex = index
+	return index
+end
+
+-- Exploration of one map for the live character: { id, key, explorerID, done, total } or nil when no Legacy
+-- exploration covers it. The map name matches a criterion exactly, or sits whole in an achievement's name.
+function Live.ExploreProgress(mapName)
+	if not mapName or mapName == "" then return nil end
+	local place, index = ns.Lower(mapName), Live.ExploreIndex()
+	local node = index[place]
+	if not node then
+		for name, n in pairs(index) do
+			if HasPhrase(name, place) and (not node or n.depth > node.depth) then node = n end
+		end
+	end
+	if not node then return nil end
+	local done, total = 0, 0
+	for _, c in ipairs(Live.Criteria(node.id)) do
+		total = total + 1
+		if c.done then done = done + 1 end
+	end
+	if total == 0 then return nil end
+	return { id = node.id, key = node.key, explorerID = node.explorerID, depth = node.depth, done = done, total = total,
+		nested = IsNested(node.id) }
 end
 
 -- Dungeon and raid entrances on a map (the data Blizzard's own entrance pins use): name, normalized x / y,

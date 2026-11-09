@@ -40,8 +40,8 @@ local DEFAULTS = {
 		remindUnspent = true,  -- chat line at login when Legacy points are unspent
 		remindRewards = true,  -- chat line at login when an unlocked reward waits at Innkeeper Wiley
 		instanceHelper = true, -- chat lines inside a dungeon or raid that counts toward a challenge (Core/Instance.lua)
-		mapBadges = true,      -- Legacy marks beside the world map's dungeon and raid entrances (UI/MapBadges.lua)
-		mapBadgesWithLegacyForever = false, -- the same while Legacy Forever is loaded (it pins entrances too)
+		mapZone = true,        -- Legacy progress of the zone open on the world map (UI/MapZone.lua)
+		mapZoneWithLegacyForever = false, -- the same while Legacy Forever is loaded (it shows zone progress too)
 	},
 	-- status: open | progress | done | all; section: the Challenges tab ("" = its overview);
 	-- sort (1.0): game | closest | points | name, for the rows inside a section
@@ -141,7 +141,7 @@ function Core:SetSetting(key, value)
 	self.db.settings[key] = value
 	if ns.UI and ns.UI.ApplySettings then ns.UI:ApplySettings() end
 	if key == "minimap" and ns.Minimap and ns.Minimap.Update then ns.Minimap:Update() end
-	if ns.MapBadges then ns.MapBadges:Refresh() end
+	if ns.MapZone then ns.MapZone:Refresh() end
 end
 
 -- withProgress reads the character's progress on multi-part challenges (Live.ProgressSnapshot); that walk is
@@ -241,7 +241,7 @@ function Core:RequestRefresh()
 		end
 		if ns.UI then ns.UI:Refresh() end
 		if ns.Minimap and ns.Minimap.UpdateText then ns.Minimap:UpdateText() end
-		if ns.MapBadges then ns.MapBadges:Refresh() end
+		if ns.MapZone then ns.MapZone:Refresh() end
 	end)
 end
 
@@ -267,7 +267,7 @@ Core:SetScript("OnEvent", function(self, event, arg1)
 		self:RecordCharacter(true)
 		if ns.Options then ns.Options:Register() end
 		if ns.Minimap then ns.Minimap:Create() end
-		if ns.MapBadges then ns.MapBadges:Register() end
+		if ns.MapZone then ns.MapZone:Register() end
 	elseif event == "PLAYER_LOGOUT" then
 		self:RecordCharacter(true)
 	elseif event == "PLAYER_ENTERING_WORLD" then
