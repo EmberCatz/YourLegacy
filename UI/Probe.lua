@@ -157,9 +157,10 @@ Check("dungeons", "Dungeon and raid names", function(run)
 		return "fail", string.format("No entrances on any of %d maps, so the map banner shows no dungeons. Details: %s",
 			maps, table.concat(run.entranceDiagnostics, " | "))
 	end
-	local matched = {}
+	local matched, counts = {}, {}
 	for _, e in ipairs(entrances) do
 		for _, m in ipairs(Live.InstanceChallenges(e.name, e.kind)) do
+			counts[e.name] = true
 			for _, c in ipairs(m.parts) do matched[c.key] = true end
 			if m.whole then matched["whole:" .. m.item.id] = true end
 		end
@@ -176,8 +177,9 @@ Check("dungeons", "Dungeon and raid names", function(run)
 			end
 		end
 	end
+	-- only entrances that count for a challenge: Questie lists other expansions' places too (probe 2026-11-10)
 	for _, e in ipairs(entrances) do
-		if not Data.LevelRange(e.name, type(e.journalID) == "number" and e.journalID or nil, e.english) then noLevels[#noLevels + 1] = e.name end
+		if counts[e.name] and not Data.LevelRange(e.name, type(e.journalID) == "number" and e.journalID or nil, e.english) then noLevels[#noLevels + 1] = e.name end
 	end
 	run.noLevels = noLevels
 	local text = string.format("%d entrances (from %s).", #entrances, source)
