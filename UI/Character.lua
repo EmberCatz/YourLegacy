@@ -76,8 +76,10 @@ end
 -- portrait left, the panel's corners) and 2px between.
 function Character.Gap(side)
 	local left, right = Metal()
-	if side == "LEFT" then return math.max(0, right) + 13 + 2 end
-	return 4 + math.max(0, -left) + 2
+	local wLeft, wRight = -13, 4
+	if UI.WindowMetal then wLeft, wRight = UI.WindowMetal() end
+	if side == "LEFT" then return math.max(0, right) + math.max(0, -wLeft) + 2 end
+	return math.max(0, wRight) + math.max(0, -left) + 2
 end
 local function Drawer()
 	local main = UI.frame

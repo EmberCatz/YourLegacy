@@ -209,15 +209,15 @@ function UI:Create()
 	-- the ground: the Legacy panel's leather under the content, a dark fill behind it in case the atlas is missing
 	T.Fill(f, "BACKGROUND", C.paper, nil, -8)
 	local ground = f:CreateTexture(nil, "BACKGROUND", nil, -6)
-	ground:SetPoint("TOPLEFT", 2, -21)
-	ground:SetPoint("BOTTOMRIGHT", -2, 2)
 	if not T.Atlas(ground, "Legacy-Challenge-BG") then ground:Hide() end
+	self.ground = ground
 	-- the frame itself, above the pages so its edge overlaps them as Blizzard's does
 	self.border = T.NineSlice(f, "PortraitFrameTemplate", 40)
 	local portrait = self.border:CreateTexture(nil, "OVERLAY", nil, 7) -- above the nine-slice's portrait ring
 	portrait:SetSize(75, 75)
-	portrait:SetPoint("CENTER", self.border, "TOPLEFT", 25, -23) -- the portrait ring's centre
 	portrait:SetTexture(T.MEDIA .. "Logo")
+	self.portrait = portrait
+	self:RestyleMetal()
 	local title = T.Text(self.border, T.F.brand, C.head, "CENTER")
 	title:SetPoint("TOP", 0, -5)
 	title:SetPoint("LEFT", 60, 0)
@@ -356,6 +356,34 @@ function UI:PlaceMarker(key, animate)
 		m:SetPoint("BOTTOMLEFT", f, "BOTTOMLEFT", fromL + (toL - fromL) * e, bottom)
 		m:SetWidth(math.max(1, (fromR - fromL) + ((toR - toL) - (fromR - fromL)) * e))
 	end)
+end
+
+-- 1.1 developer sliders (Options > Data): the main window's metal corners and leather, as for the side panel.
+-- Blizzard's PortraitFrameTemplate: left corners x -13, right corners x 4; the leather 2px in. At those values the
+-- layout is Blizzard's own. The logo follows the top-left corner, whose art holds the portrait ring.
+local PORTRAIT_FROM_CORNER = { 25 + 13, -23 - 16 } -- the ring's centre from TopLeftCorner's top-left (x -13, y 16)
+function UI.WindowMetal()
+	local s = ns.Core.db and ns.Core.db.settings or {}
+	return tonumber(s.windowMetalLeft) or -13, tonumber(s.windowMetalRight) or 4, tonumber(s.windowGround) or 2
+end
+function UI:RestyleMetal()
+	if not (self.border and self.ground) then return end
+	local left, right, inset = UI.WindowMetal()
+	local edits
+	if left ~= -13 or right ~= 4 then
+		edits = { TopLeftCorner = { x = left }, BottomLeftCorner = { x = left }, TopRightCorner = { x = right }, BottomRightCorner = { x = right } }
+	end
+	T.ApplyNineSlice(self.border, "PortraitFrameTemplate", edits)
+	self.ground:ClearAllPoints()
+	self.ground:SetPoint("TOPLEFT", inset, -21)
+	self.ground:SetPoint("BOTTOMRIGHT", -inset, 2)
+	self.portrait:ClearAllPoints()
+	local corner = self.border.TopLeftCorner
+	if corner then
+		self.portrait:SetPoint("CENTER", corner, "TOPLEFT", PORTRAIT_FROM_CORNER[1], PORTRAIT_FROM_CORNER[2])
+	else
+		self.portrait:SetPoint("CENTER", self.border, "TOPLEFT", 25 + (left + 13), -23)
+	end
 end
 
 function UI:ShowOptions() self:Show("options") end

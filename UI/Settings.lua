@@ -279,6 +279,7 @@ function Builders.data(body)
 			row.value:SetText(tostring(v))
 			if S("devTools") then
 				ns.Core.db.settings[key] = v
+				if key:match("^window") and UI.RestyleMetal then UI:RestyleMetal() end
 				if ns.Character then ns.Character:Restyle() end
 			end
 		end, function(v) if S("devTools") then Set(key, v) end end)
@@ -291,6 +292,9 @@ function Builders.data(body)
 	PanelSlider(L["Panel: left metal"], L["Where the character panel's left metal sits, in pixels from its edge. Blizzard's: -8."], "panelMetalLeft", -20, 10)
 	PanelSlider(L["Panel: right metal"], L["Where the character panel's right metal sits. Blizzard's: 4."], "panelMetalRight", -10, 20)
 	PanelSlider(L["Panel: leather inset"], L["How far the leather starts inside the panel's left and right edges. Blizzard's: 2."], "panelGround", 0, 24)
+	PanelSlider(L["Window: left metal"], L["Where the main window's left metal sits, the portrait ring with it. Blizzard's: -13."], "windowMetalLeft", -30, 10)
+	PanelSlider(L["Window: right metal"], L["Where the main window's right metal sits. Blizzard's: 4."], "windowMetalRight", -10, 20)
+	PanelSlider(L["Window: leather inset"], L["How far the leather starts inside the main window's edges. Blizzard's: 2."], "windowGround", 0, 24)
 	r = Row(body, L["Panel preview"], L["Opens your character's panel beside this page, to watch the sliders. Run /yl probe to measure it."])
 	r.button = Control(r, T.ActionButton(r, L["Show panel"]))
 	r.button:SetScript("OnClick", function()

@@ -444,6 +444,12 @@ ns.LOCALES.deDE = {
 	["Drag to move it."] = "Zum Verschieben ziehen.",
 	["Open Your Legacy"] = "Your Legacy öffnen",
 	-- 1.1
+	["Window: left metal"] = "Hauptfenster: linkes Metall",
+	["Window: right metal"] = "Hauptfenster: rechtes Metall",
+	["Window: leather inset"] = "Hauptfenster: Leder-Abstand",
+	["Where the main window's left metal sits, the portrait ring with it. Blizzard's: -13."] = "Wo das linke Metall des Hauptfensters sitzt, samt Porträtring. Blizzards Wert: -13.",
+	["Where the main window's right metal sits. Blizzard's: 4."] = "Wo das rechte Metall des Hauptfensters sitzt. Blizzards Wert: 4.",
+	["How far the leather starts inside the main window's edges. Blizzard's: 2."] = "Wie weit innen das Leder an den Rändern des Hauptfensters beginnt. Blizzards Wert: 2.",
 	["Panel: left metal"] = "Fenster: linkes Metall",
 	["Panel: right metal"] = "Fenster: rechtes Metall",
 	["Panel: leather inset"] = "Fenster: Leder-Abstand",
