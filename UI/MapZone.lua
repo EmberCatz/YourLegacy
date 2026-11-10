@@ -260,7 +260,14 @@ function Z:Layout()
 	if not canvas or not mapID or InCombatLockdown() or not self.Enabled() then Hide() return end
 	local lines, ratio, done, goals, name = Z.Lines(mapID)
 	local newMap = shown.map ~= mapID
-	shown = { map = mapID, challenges = Live.Challenges() }
+	-- 1.1: entrances come from Blizzard's pins when the API gives none (probe 2026-11-10); note what each source had
+	local fromAPI, pins = #Live.DungeonEntrancesFromAPI(mapID), #Live.MapEntrancePins()
+	shown = { map = mapID, challenges = Live.Challenges(), pins = pins }
+	if newMap and name then
+		local seen = ns.Core.db.evidence.entrances or { maps = {} }
+		seen.maps[name] = string.format("api %d, pins %d", fromAPI, pins)
+		ns.Core:Evidence("entrances", seen)
+	end
 	if #lines == 0 then if box then box:Hide() end return end
 	-- on the scroll container that holds the canvas: stays put while the map zooms and pans
 	local parent = canvas:GetParent() or canvas
@@ -295,7 +302,9 @@ function Z:Check()
 	ns.MapButton:Update(not combat)
 	if combat then Hide() return end
 	local _, mapID = Live.MapView()
-	if mapID ~= shown.map or self.dirty then
+	-- Blizzard's pins can land a moment after the map changes: fill again when their count moves
+	local pinsMoved = mapID == shown.map and shown.pins ~= nil and #Live.MapEntrancePins() ~= shown.pins
+	if mapID ~= shown.map or self.dirty or pinsMoved then
 		self.dirty = false
 		self:Layout()
 	else

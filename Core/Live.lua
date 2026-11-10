@@ -480,7 +480,34 @@ end
 
 -- Dungeon and raid entrances on a map (the data Blizzard's own entrance pins use): name, normalized x / y,
 -- kind from the pin's atlas ("Raid" in it = raid).
+-- Blizzard's own entrance pins on the open world map (MapCanvasMixin:EnumeratePinsByTemplate, read only; the pin
+-- fields come from BaseMapPoiPinMixin:OnAcquired and MapCanvasPinMixin:SetPosition). The 2026-11-10 probe found
+-- GetDungeonEntrancesForMap empty on every map while Blizzard drew the Deadmines icon on Westfall.
+function Live.MapEntrancePins()
+	local out = {}
+	local map = WorldMapFrame
+	if not (map and map.IsShown and map:IsShown() and type(map.EnumeratePinsByTemplate) == "function") then return out end
+	try(function()
+		for pin in map:EnumeratePinsByTemplate("DungeonEntrancePinTemplate") do
+			if type(pin.name) == "string" and pin.name ~= "" and pin.normalizedX then
+				out[#out + 1] = { name = pin.name, x = pin.normalizedX, y = pin.normalizedY, journalID = pin.journalInstanceID,
+					kind = pin.isRaid and "raid" or "party", source = "pins" }
+			end
+		end
+	end)
+	return out
+end
+
 function Live.DungeonEntrances(mapID)
+	local out = Live.DungeonEntrancesFromAPI(mapID)
+	if #out > 0 then return out end
+	-- the API gave nothing: fall back to Blizzard's pins while the world map shows this map
+	local _, shownID = Live.MapView()
+	if shownID and shownID == mapID then return Live.MapEntrancePins() end
+	return out
+end
+
+function Live.DungeonEntrancesFromAPI(mapID)
 	local out = {}
 	if not (mapID and C_EncounterJournal) then return out end
 	for _, e in ipairs(try(C_EncounterJournal.GetDungeonEntrancesForMap, mapID) or {}) do

@@ -219,6 +219,17 @@ local EVIDENCE = {
 			return true, "Matched: " .. Join(good)
 		end,
 		todo = "Enter a dungeon that counts toward a Spelunker challenge." },
+	{ key = "entrances", title = "Dungeon entrances on the open map",
+		ok = function(e)
+			local bits, any = {}, false
+			for name, text in pairs(e.maps or {}) do
+				bits[#bits + 1] = name .. ": " .. text
+				if not text:find("api 0, pins 0", 1, true) then any = true end
+			end
+			table.sort(bits)
+			return any, Join(bits, 20)
+		end,
+		todo = "Open the world map on Westfall or The Barrens." },
 	{ key = "renown", title = "New point event",
 		ok = function(e) return (e.new or 0) > (e.old or 0), string.format("Went from %s to %s.", tostring(e.old), tostring(e.new)) end,
 		todo = "Earn a Legacy point." },

@@ -132,7 +132,11 @@ local function Migrate(db)
 			end
 		end
 	end
-	-- v13 (1.1): evidence and probe are new tables (ApplyDefaults adds them); nothing older to convert.
+	-- v13 (1.1): evidence and probe are new tables (ApplyDefaults adds them). Settings of removed 1.0 dev features
+	-- (the map badges, the zone box corners) were still in saved data (seen in a /yl report, 2026-11-10).
+	if (db.version or 1) < 13 and type(db.settings) == "table" then
+		db.settings.mapBadges, db.settings.mapBadgesWithLegacyForever, db.settings.mapZoneCorner = nil, nil, nil
+	end
 	db.version = DB_VERSION
 	return db
 end

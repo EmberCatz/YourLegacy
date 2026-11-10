@@ -199,7 +199,8 @@ function P.ShowChallengeTooltip(owner, item)
 			local boss = ns.Instance and ns.Instance.BossFor(c)
 			local text = boss and string.format("%s (%s)", c.text, boss) or c.text
 			-- 1.1: a dungeon or raid part gets its level range (guide data, Data.DUNGEON_LEVELS)
-			if c.type == Data.CRITERIA_KILL and bracket then text = Data.WithLevels(text) end
+			-- (not only kill parts: "Ragefire Chasm or Hall of Thanes" is type 78 with no asset, report 2026-11-10)
+			if bracket then text = Data.WithLevels(text) end
 			local hereColor = hereKeys and hereKeys[c.key] and not c.done and C.head
 			if others then
 				-- who has done this part: the live character first, then the saved ones
