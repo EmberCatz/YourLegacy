@@ -183,8 +183,17 @@ end
 -- "48%": rounded down, so 100% means every goal here is done.
 function Z.Percent(ratio) return string.format("%d%%", math.floor(math.max(0, math.min(1, ratio)) * 100 + 1e-6)) end
 
+-- 1.1: the banner keeps the UI's own scale, not the map's (fractional while the map window is resized, which ate
+-- thin glyphs like ":" in game). K converts the map's units into the banner's.
+local function K(parent)
+	local b, p = box:GetEffectiveScale(), parent:GetEffectiveScale()
+	return (b > 0 and p > 0) and p / b or 1
+end
+
 local function Create(parent)
 	box = T.Panel(parent, "", Z.WIDTH, 100)
+	box:SetIgnoreParentScale(true)
+	box:SetScale(UIParent:GetEffectiveScale())
 	box.icon = box:CreateTexture(nil, "ARTWORK")
 	box.icon:SetSize(14, 20) -- UI-Legacy-Points-icon-c60 is 50 × 73
 	box.icon:SetPoint("LEFT", box.band, "LEFT", 10, 0)
@@ -234,7 +243,11 @@ local function Create(parent)
 		self.dragging = nil
 		local p = self:GetParent()
 		local l, t, pl, pt = self:GetLeft(), self:GetTop(), p:GetLeft(), p:GetTop()
-		if l and t and pl and pt then S().mapZonePos = { x = math.floor(l - pl + 0.5), y = math.floor(t - pt + 0.5) } end
+		if l and t and pl and pt then
+			-- kept in the map's units: both edges to screen pixels, then into the map's scale
+			local b, ps = self:GetEffectiveScale(), p:GetEffectiveScale()
+			S().mapZonePos = { x = math.floor((l * b - pl * ps) / ps + 0.5), y = math.floor((t * b - pt * ps) / ps + 0.5) }
+		end
 		self.spot = nil
 		Z.Place()
 	end)
@@ -263,18 +276,20 @@ end
 local function Place(parent)
 	if box.dragging then return end
 	local x, y = Z.SavedPos()
+	local k = K(parent)
 	if x then
-		x = math.max(0, math.min(x, parent:GetWidth() - box:GetWidth()))
-		y = math.min(0, math.max(y, box:GetHeight() - parent:GetHeight()))
+		local w, h = box:GetWidth() / k, box:GetHeight() / k -- the banner's size in the map's units
+		x = math.max(0, math.min(x, parent:GetWidth() - w))
+		y = math.min(0, math.max(y, h - parent:GetHeight()))
 	else
 		local dx, dy = Live.MapCornerClear(parent, "TOPLEFT", { ns.MapButton.Button() }, box)
 		x, y = Z.MARGIN + dx, -(Z.MARGIN + dy)
 	end
-	local spot = x .. ":" .. y
+	local spot = x .. ":" .. y .. ":" .. k
 	if box.spot == spot then return end
 	box.spot = spot
 	box:ClearAllPoints()
-	box:SetPoint("TOPLEFT", parent, "TOPLEFT", x, y)
+	box:SetPoint("TOPLEFT", parent, "TOPLEFT", x * k, y * k)
 end
 Z.Place = function() if box and box:IsShown() then Place(box:GetParent()) end end
 
@@ -334,10 +349,14 @@ function Z:Layout()
 	local wasShown = box:IsShown()
 	box:Show()
 	if newMap or not wasShown then
-		T.Reveal(box, T.DUR_SHORT, 0.97)
-		-- the lines come in one after another
+		-- fades only: a scale animation redraws text at in-between sizes, which shifted and smeared it in game
+		T.Reveal(box, T.DUR_SHORT)
+		-- the lines come in one after another (hidden until their turn, so nothing pops in early)
 		for i, r in ipairs(box.rows) do
-			if r:IsShown() then T.Reveal(r, T.DUR_SHORT, nil, 0.06 * i) end
+			if r:IsShown() and T.Animated() then
+				r:SetAlpha(0)
+				C_Timer.After(0.05 * i, function() r:SetAlpha(1) T.Reveal(r, T.DUR_SHORT) end)
+			end
 		end
 	end
 end

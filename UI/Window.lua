@@ -128,6 +128,13 @@ function UI.Scroll(parent, width, height)
 	end
 	scroll:EnableMouseWheel(true)
 	scroll:SetScript("OnMouseWheel", function(self, delta)
+		-- 1.1 (the user's bug): a tooltip anchored to a card in here rode along with the scroll; close it, as
+		-- Blizzard's scroll lists do
+		local owner = GameTooltip:IsShown() and GameTooltip:GetOwner()
+		while owner do
+			if owner == self then GameTooltip:Hide() break end
+			owner = owner.GetParent and owner:GetParent()
+		end
 		local max = math.max(0, child:GetHeight() - self:GetHeight())
 		target = math.max(0, math.min(max, (self:GetScript("OnUpdate") and target or self:GetVerticalScroll()) - delta * 48))
 		if T.Animated() then
@@ -182,8 +189,15 @@ function UI:Create()
 	f:SetMovable(true)
 	f:EnableMouse(true)
 	f:RegisterForDrag("LeftButton")
-	f:SetScript("OnDragStart", function(self) if not ns.Core:Setting("locked") then self:StartMoving() end end)
-	f:SetScript("OnDragStop", f.StopMovingOrSizing)
+	f:SetScript("OnDragStart", function(self)
+		if ns.Core:Setting("locked") then return end
+		self:StartMoving()
+		if ns.Character then ns.Character:DragStart() end
+	end)
+	f:SetScript("OnDragStop", function(self)
+		self:StopMovingOrSizing()
+		if ns.Character then ns.Character:DragStop() end
+	end)
 	tinsert(UISpecialFrames, "YourLegacyFrame") -- Escape closes it
 	-- the sounds Blizzard's Legacy panel makes (Blizzard_LegacySystem.lua: IG_CHARACTER_INFO_OPEN / _CLOSE)
 	f:SetScript("OnShow", function() UI.Sound("open") end)
@@ -244,6 +258,26 @@ function UI:Create()
 	opts:SetScript("OnClick", function() UI:Show("options") end)
 	opts.key = "options"
 	self.tabs.options = opts
+	-- 1.1 (the user: juice, in WoW's look): one gold marker glides from tab to tab; hovering a tab shows a faint
+	-- line under it; a pressed label dips a pixel, as Blizzard's buttons do
+	self.marker = f:CreateTexture(nil, "OVERLAY")
+	self.marker:SetColorTexture(T.unpack(C.accent))
+	self.marker:SetHeight(2)
+	self.marker:Hide()
+	self.markerDriver = CreateFrame("Frame", nil, f)
+	for _, tab in pairs(self.tabs) do
+		tab.glow:SetAlpha(0) -- the shared marker shows the active tab
+		tab.peek = tab:CreateTexture(nil, "ARTWORK")
+		tab.peek:SetColorTexture(T.unpack(C.accent, 0.35))
+		tab.peek:SetHeight(1)
+		tab.peek:SetPoint("BOTTOMLEFT", 12, 0)
+		tab.peek:SetPoint("BOTTOMRIGHT", -12, 0)
+		tab.peek:Hide()
+		tab:HookScript("OnEnter", function(self) self.peek:SetShown(not self.active) end)
+		tab:HookScript("OnLeave", function(self) self.peek:Hide() end)
+		tab:HookScript("OnMouseDown", function(self) self.Label:SetPoint("CENTER", 0, -1) end)
+		tab:HookScript("OnMouseUp", function(self) self.Label:SetPoint("CENTER", 0, 0) end)
+	end
 
 	for key in pairs(self.pages) do
 		local page = CreateFrame("Frame", nil, f)
@@ -283,12 +317,45 @@ function UI:Show(key)
 	T.CloseDropdowns()
 	for k, p in pairs(self.pages) do
 		p.frame:SetShown(k == key)
-		if self.tabs[k] then self.tabs[k]:SetActive(k == key) end
+		if self.tabs[k] then
+			self.tabs[k]:SetActive(k == key)
+			self.tabs[k].peek:Hide()
+		end
 	end
+	self:PlaceMarker(key, changed and self.frame:IsShown())
 	self.title:SetText(string.format(ns.L["Your Legacy: %s"], key == "options" and ns.L["Options"] or self.pages[key].label))
 	self.frame:Show()
 	self:Refresh()
 	if changed then T.Reveal(self.pages[key].frame, T.DUR_MICRO) end -- a tab change crossfades, nothing moves
+end
+
+-- The gold marker under the active tab. animate: glide there from where it is (0.2s, easing out), else jump.
+local MARKER_TIME = 0.2
+function UI:PlaceMarker(key, animate)
+	local tab, f, m = self.tabs[key], self.frame, self.marker
+	if not (tab and m) then return end
+	local function Snap()
+		self.markerDriver:SetScript("OnUpdate", nil)
+		m:ClearAllPoints()
+		m:SetPoint("BOTTOMLEFT", tab, "BOTTOMLEFT", 12, 0)
+		m:SetPoint("BOTTOMRIGHT", tab, "BOTTOMRIGHT", -12, 0)
+		m:Show()
+	end
+	local fl, tl, tr, mb = f:GetLeft(), tab:GetLeft(), tab:GetRight(), tab:GetBottom()
+	local ml, mr = m:IsShown() and m:GetLeft(), m:IsShown() and m:GetRight()
+	if not (animate and T.Animated() and fl and tl and tr and mb and ml and mr) then return Snap() end
+	local fromL, fromR = ml - fl, mr - fl
+	local toL, toR = tl - fl + 12, tr - fl - 12
+	local bottom = mb - f:GetBottom()
+	local t0 = GetTime()
+	self.markerDriver:SetScript("OnUpdate", function()
+		local p = math.min(1, (GetTime() - t0) / MARKER_TIME)
+		local e = 1 - (1 - p) * (1 - p) * (1 - p)
+		if p >= 1 then return Snap() end
+		m:ClearAllPoints()
+		m:SetPoint("BOTTOMLEFT", f, "BOTTOMLEFT", fromL + (toL - fromL) * e, bottom)
+		m:SetWidth(math.max(1, (fromR - fromL) + ((toR - toL) - (fromR - fromL)) * e))
+	end)
 end
 
 function UI:ShowOptions() self:Show("options") end

@@ -389,7 +389,10 @@ local function RefreshBoard(data)
 		card.section = g.title
 		card.title:SetText(g.title)
 		card.hint:SetText(string.format("%d / %d", g.done, g.total))
-		card.bar:SetHeatValue(g.total > 0 and g.done / g.total or 0)
+		-- 1.1 (the user: the blue line under the titles): the section's share in gold, softer while under way
+		local share = g.total > 0 and g.done / g.total or 0
+		card.bar:SetValue(share)
+		card.bar:SetColor(share >= 1 and C.heat6 or { C.heat6[1], C.heat6[2], C.heat6[3], 0.55 })
 		local cx, cy = x + 14, y + 44 + 10
 		if shape then
 			local pipW = math.floor((CARD_INNER - MINI_LABEL_W - (shape.cols - 1) * PIP_GAP) / shape.cols)

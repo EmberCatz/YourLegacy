@@ -74,12 +74,14 @@ local function Drawer()
 	f.band:SetPoint("TOPLEFT", 0, 0)
 	f.band:SetPoint("TOPRIGHT", 0, 0)
 	f.band:SetHeight(22)
+	-- 1.1 (the user: the title sat high, the close button too far right): the title centred in the strip, the
+	-- close button where the main window has it
 	f.title = T.Text(f.band, T.F.brand, C.head, "CENTER")
-	f.title:SetPoint("TOP", 0, -4)
+	f.title:SetPoint("CENTER", f.band, "TOP", 0, -12)
 	f.title:SetPoint("LEFT", 40, 0)
 	f.title:SetPoint("RIGHT", -40, 0)
 	local close = CreateFrame("Button", nil, f.border, "UIPanelCloseButton")
-	close:SetPoint("TOPRIGHT", 2, 2)
+	close:SetPoint("TOPRIGHT", -2, 1)
 	close:SetScript("OnClick", function()
 		f:Hide()
 		UI:Refresh()
@@ -98,7 +100,7 @@ local function Drawer()
 	f.level = T.Text(f.banner, T.F.big, C.ink, "RIGHT")
 	f.level:SetPoint("RIGHT", f, "TOPRIGHT", -18, -BANNER_MID)
 	f.body = CreateFrame("Frame", nil, f)
-	f.body:SetPoint("TOPLEFT", 14, -(GROUND_TOP + LINE_AT + 10))
+	f.body:SetPoint("TOPLEFT", 14, -(GROUND_TOP + LINE_AT + 16)) -- 1.1: 6px more air under the line
 	f.body:SetPoint("BOTTOMRIGHT", -14, 12)
 	-- quiet, right on the body's first line: how old a snapshot is (nothing for the character you're playing)
 	f.hint = T.Text(f.body, T.F.small, C.muted, "RIGHT")
@@ -143,19 +145,46 @@ function Character.SlideBack()
 	end
 end
 
-local function Open(f)
-	local wasShown = f:IsShown()
+local function Anchor(f, side)
 	local main = UI.frame
-	local side, slide = Character.Side(main)
-	if slide and not InCombatLockdown() then Slide(main, slide) end
+	if f.side == side then return end
+	f.side = side
 	f:ClearAllPoints()
 	if side == "LEFT" then
 		f:SetPoint("TOPRIGHT", main, "TOPLEFT", -Character.SIDE_GAP, 0)
 	else
 		f:SetPoint("TOPLEFT", main, "TOPRIGHT", Character.SIDE_GAP, 0)
 	end
+end
+
+local function Open(f)
+	local wasShown = f:IsShown()
+	local main = UI.frame
+	local side, slide = Character.Side(main)
+	if slide and not InCombatLockdown() then Slide(main, slide) end
+	f.side = nil
+	Anchor(f, side)
 	f:Show()
-	if not wasShown then T.Reveal(f, 0.2, 0.97, 0, side == "LEFT" and "RIGHT" or "LEFT") end
+	if not wasShown then T.Reveal(f, 0.2) end
+end
+
+-- 1.1 (the user: responsive): while the window is dragged, the open panel takes whichever side has room.
+-- No sliding then: the player is placing the window.
+function Character:Follow()
+	local main = UI.frame
+	for _, f in ipairs({ self.frame, self.planner }) do
+		if f and f:IsShown() then Anchor(f, (Character.Side(main))) end
+	end
+end
+function Character:DragStart()
+	Character.shifted = nil -- the player moves it now: no sliding back
+	if not ((self.frame and self.frame:IsShown()) or (self.planner and self.planner:IsShown())) then return end
+	self.follower = self.follower or CreateFrame("Frame")
+	self.follower:SetScript("OnUpdate", function() Character:Follow() end)
+end
+function Character:DragStop()
+	if self.follower then self.follower:SetScript("OnUpdate", nil) end
+	self:Follow()
 end
 
 ---------------------------------------------------------------- character panel
