@@ -64,7 +64,7 @@ ns.ProfRank = ProfRank
 -- values the layout is Blizzard's own.
 local function Metal()
 	local s = ns.Core.db and ns.Core.db.settings or {}
-	return tonumber(s.panelMetalLeft) or -8, tonumber(s.panelMetalRight) or 4, tonumber(s.panelGround) or 2
+	return tonumber(s.panelMetalLeft) or -17, tonumber(s.panelMetalRight) or 4, tonumber(s.panelGround) or 2
 end
 function Character.MetalEdits()
 	local left, right = Metal()

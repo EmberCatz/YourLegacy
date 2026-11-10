@@ -50,7 +50,7 @@ local DEFAULTS = {
 		announceNewPoint = true, -- on a new Legacy point, say which characters can spend it
 		barFill = "DefaultBlue", -- the fill of the progress bars: a profession rank-bar art (Theme.BAR_FILLS)
 		-- 1.1 developer sliders (Options > Data): the side panel's metal corners and its leather inset, in pixels
-		panelMetalLeft = -8,   -- x of the left corners (Blizzard: -8)
+		panelMetalLeft = -17,  -- x of the left corners (Blizzard: -8; -17 is the user's pick, 2026-11-10)
 		panelMetalRight = 4,   -- x of the right corners (Blizzard: 4)
 		panelGround = 2,       -- the leather's inset from the left and right edges (Blizzard's Bg: 2)
 	},
