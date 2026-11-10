@@ -62,11 +62,7 @@ function I.BossFor(c)
 end
 
 -- The bracket a dungeon challenge belongs to (Data.DUNGEON_BRACKETS), for the outlevel line.
-local function Bracket(m)
-	for _, c in ipairs(m.criteria) do
-		for _, b in ipairs(Data.DUNGEON_BRACKETS) do if c.assetID == b.marker then return b end end
-	end
-end
+local function Bracket(m) return ns.Pages.BracketOf(m.criteria) end
 
 -- Chat lines for one challenge this instance counts toward. Nothing for a finished one unless asked (/yl here).
 local function Lines(place, m, forced)
@@ -121,9 +117,13 @@ function I:Update()
 	-- 1.1 probe evidence: did the game's instance name find its challenge? (a known dungeon that matched nothing is a
 	-- name mismatch, like a wing named differently in GetInstanceInfo than in the challenge's parts)
 	if Data.LevelRange(place.name) or #matches > 0 then
-		local seen = Core.db.evidence.instances or { names = {} }
-		seen.names[place.name] = #matches > 0 and "matched" or "no challenge"
-		Core:Evidence("instances", seen)
+		local old = Core.db.evidence.instances
+		local names = {}
+		if type(old) == "table" and type(old.names) == "table" then
+			for k, v in pairs(old.names) do names[k] = v end
+		end
+		names[place.name] = #matches > 0 and "matched" or "no challenge"
+		Core:Evidence("instances", { names = names })
 	end
 end
 

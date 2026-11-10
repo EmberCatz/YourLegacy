@@ -164,6 +164,8 @@ end
 function Core:SetSetting(key, value)
 	if not self.db then return end
 	self.db.settings[key] = value
+	-- the debug fill lives behind Developer tools; switching them off must not leave fake progress on
+	if key == "devTools" and not value and Live.demo then Live.SetDemo(nil) end
 	if ns.UI and ns.UI.ApplySettings then ns.UI:ApplySettings() end
 	if key == "minimap" and ns.Minimap and ns.Minimap.Update then ns.Minimap:Update() end
 	if ns.MapZone then ns.MapZone:Refresh() end

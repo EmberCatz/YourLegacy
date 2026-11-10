@@ -330,8 +330,8 @@ function T.TextButton(parent, label, font)
 		local was = self.active
 		self.active = active
 		self.Label:SetTextColor(unpackC(active and C.head or C.ink2))
-		self.glow:SetShown(active)
-		if active and not was then T.Reveal(self.glow, T.DUR_MICRO) end
+		self.glow:SetShown(active and not self.noGlow)
+		if active and not was and not self.noGlow then T.Reveal(self.glow, T.DUR_MICRO) end
 	end
 	return b
 end

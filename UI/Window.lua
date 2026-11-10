@@ -271,7 +271,8 @@ function UI:Create()
 	self.marker:Hide()
 	self.markerDriver = CreateFrame("Frame", nil, f)
 	for _, tab in pairs(self.tabs) do
-		tab.glow:SetAlpha(0) -- the shared marker shows the active tab
+		tab.noGlow = true -- the shared marker shows the active tab
+		tab.glow:Hide()
 		tab.peek = tab:CreateTexture(nil, "ARTWORK")
 		tab.peek:SetColorTexture(T.unpack(C.accent, 0.35))
 		tab.peek:SetHeight(1)

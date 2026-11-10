@@ -101,7 +101,7 @@ function Z.Lines(mapID)
 			end
 		end
 	end
-	return lines, goals > 0 and sum / goals or 0, done, goals, name
+	return lines, goals > 0 and sum / goals or 0, done, goals, name, explore
 end
 
 -- 1.1: /yl here in the open world. What the zone you stand in still holds: its share done, the goals left, and the
@@ -308,15 +308,19 @@ end
 function Z:Layout()
 	local canvas, mapID = Live.MapView()
 	if not canvas or not mapID or InCombatLockdown() or not self.Enabled() then Hide() return end
-	local lines, ratio, done, goals, name = Z.Lines(mapID)
+	local lines, ratio, done, goals, name, explore = Z.Lines(mapID)
 	local newMap = shown.map ~= mapID
 	-- 1.1: entrances come from Blizzard's pins when the API gives none (probe 2026-11-10); note what each source had
 	local fromAPI, pins, questie = #Live.DungeonEntrancesFromAPI(mapID), #Live.MapEntrancePins(), #Live.QuestieEntrances(mapID)
-	shown = { map = mapID, challenges = Live.Challenges(), pins = pins }
+	-- the pin count is watched on the ticker only while the game's call gives nothing (pins can land late)
+	shown = { map = mapID, challenges = Live.Challenges(), pins = fromAPI == 0 and pins or nil }
 	if newMap and name then
-		local seen = ns.Core.db.evidence.entrances or { maps = {} }
-		seen.maps[name] = string.format("api %d, pins %d, questie %d", fromAPI, pins, questie)
-		ns.Core:Evidence("entrances", seen)
+		local old, maps = ns.Core.db.evidence.entrances, {}
+		if type(old) == "table" and type(old.maps) == "table" then
+			for k, v in pairs(old.maps) do maps[k] = v end
+		end
+		maps[name] = string.format("api %d, pins %d, questie %d", fromAPI, pins, questie)
+		ns.Core:Evidence("entrances", { maps = maps })
 	end
 	if #lines == 0 then if box then box:Hide() end return end
 	-- on the scroll container that holds the canvas: stays put while the map zooms and pans
@@ -331,7 +335,6 @@ function Z:Layout()
 	if newMap and T.Animated() then box.bar:Paint(0, 0) end
 	box.bar:SetValue(ratio, true)
 	box.goals = { done = done, total = goals }
-	local explore = Live.ExploreProgress(name)
 	box.missing = explore and not explore.nested and explore.missing or {}
 	for i, r in ipairs(box.rows) do
 		local line = lines[i]

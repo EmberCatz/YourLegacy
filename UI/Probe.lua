@@ -141,7 +141,7 @@ Check("dungeons", "Dungeon and raid names", function(run)
 	for _, m in ipairs(Live.AllMaps()) do
 		for _, e in ipairs(Live.DungeonEntrances(m.id)) do
 			if not journal[e.name] then
-				journal[e.name] = e.journalID or e.areaID or true
+				journal[e.name] = e.journalID or true -- (a Questie area ID is no journal ID: DUNGEON_LEVEL_IDS needs those)
 				entrances[#entrances + 1] = e
 			end
 		end
@@ -293,7 +293,12 @@ function Probe.Results()
 	local run, results = {}, {}
 	for _, c in ipairs(CHECKS) do
 		local ok, status, text = pcall(c.fn, run)
-		if not ok then status, text = "fail", "The check itself broke: " .. tostring(status) end
+		if not ok then
+			-- report it in the run, and let the error surface too (CLAUDE.md: our own errors aren't pcall'd away)
+			local err = status
+			status, text = "fail", "The check itself broke: " .. tostring(err)
+			if geterrorhandler then geterrorhandler()(err) end
+		end
 		results[#results + 1] = { id = c.id, title = c.title, status = status, text = text }
 	end
 	local evidence = ns.Core.db.evidence

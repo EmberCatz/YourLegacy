@@ -491,7 +491,7 @@ function Live.MapEntrancePins()
 		for pin in map:EnumeratePinsByTemplate("DungeonEntrancePinTemplate") do
 			if type(pin.name) == "string" and pin.name ~= "" and pin.normalizedX then
 				out[#out + 1] = { name = pin.name, x = pin.normalizedX, y = pin.normalizedY, journalID = pin.journalInstanceID,
-					kind = pin.isRaid and "raid" or "party", source = "pins" }
+					kind = (pin.isRaid or Data.RAID_KEYS[Data.LevelKey(pin.name)]) and "raid" or "party", source = "pins" }
 			end
 		end
 	end)

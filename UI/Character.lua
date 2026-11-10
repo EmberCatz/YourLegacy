@@ -151,9 +151,10 @@ end
 
 function Character.SlideBack()
 	local s, main = Character.shifted, UI.frame
-	Character.shifted = nil
 	if not (s and main) then return end
+	-- another panel took its place (character <-> class planner): keep the slide for when that one closes
 	if (Character.frame and Character.frame:IsShown()) or (Character.planner and Character.planner:IsShown()) then return end
+	Character.shifted = nil
 	local point, rel, relPoint, x, y = main:GetPoint(1)
 	if point and math.abs((x or 0) - s.x) < 0.5 and math.abs((y or 0) - s.y) < 0.5 then
 		main:ClearAllPoints()
