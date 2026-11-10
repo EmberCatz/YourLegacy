@@ -209,14 +209,9 @@ Check("frames", "Window and panel metal", function(run)
 	local ui, ch = ns.UI and ns.UI.frame, ns.Character and ns.Character.frame
 	local out = {}
 	if ui and ui:IsShown() then
-		local st = ns.Core.db.settings
-		out[#out + 1] = string.format("Window sliders: left %s, right %s, leather %s, logo disc %s", tostring(st.windowMetalLeft),
-			tostring(st.windowMetalRight), tostring(st.windowGround), tostring(st.windowLogoDisc))
 		out[#out + 1] = "Window: " .. Pieces(ui, ns.UI.border)
 	end
 	if ch and ch:IsShown() then
-		local st = ns.Core.db.settings
-		out[#out + 1] = string.format("Sliders: left %s, right %s, leather %s", tostring(st.panelMetalLeft), tostring(st.panelMetalRight), tostring(st.panelGround))
 		out[#out + 1] = "Panel: " .. Pieces(ch, ch.border)
 		local g = ch.ground
 		if g and g:GetLeft() then out[#out + 1] = string.format("Panel ground L%+.0f", g:GetLeft() - ch:GetLeft()) end

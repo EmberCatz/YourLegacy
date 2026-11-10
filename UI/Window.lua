@@ -363,23 +363,16 @@ function UI:PlaceMarker(key, animate)
 	end)
 end
 
--- 1.1 developer sliders (Options > Data): the main window's metal corners and leather, as for the side panel.
--- Blizzard's PortraitFrameTemplate: left corners x -13, right corners x 4; the leather 2px in. At those values the
--- layout is Blizzard's own. The logo follows the top-left corner, whose art holds the portrait ring.
+-- The main window's metal: Blizzard's PortraitFrameTemplate (corners left x -13, right x 4, the leather 2px in), set
+-- to the user's picks with the 1.1 tuning sliders (since removed): left -17, right 5, the leather 1px in, and a 60px
+-- black disc behind the logo. The logo follows the top-left corner, whose art holds the portrait ring.
+UI.METAL_LEFT, UI.METAL_RIGHT, UI.GROUND, UI.LOGO_DISC = -17, 5, 1, 60
 local PORTRAIT_FROM_CORNER = { 25 + 13, -23 - 16 } -- the ring's centre from TopLeftCorner's top-left (x -13, y 16)
-function UI.WindowMetal()
-	local s = ns.Core.db and ns.Core.db.settings or {}
-	return tonumber(s.windowMetalLeft) or -17, tonumber(s.windowMetalRight) or 5, tonumber(s.windowGround) or 1,
-		tonumber(s.windowLogoDisc) or 60
-end
 function UI:RestyleMetal()
 	if not (self.border and self.ground) then return end
-	local left, right, inset, disc = UI.WindowMetal()
-	local edits
-	if left ~= -13 or right ~= 4 then
-		edits = { TopLeftCorner = { x = left }, BottomLeftCorner = { x = left }, TopRightCorner = { x = right }, BottomRightCorner = { x = right } }
-	end
-	T.ApplyNineSlice(self.border, "PortraitFrameTemplate", edits)
+	local left, right, inset, disc = UI.METAL_LEFT, UI.METAL_RIGHT, UI.GROUND, UI.LOGO_DISC
+	T.ApplyNineSlice(self.border, "PortraitFrameTemplate", { TopLeftCorner = { x = left }, BottomLeftCorner = { x = left },
+		TopRightCorner = { x = right }, BottomRightCorner = { x = right } })
 	self.ground:ClearAllPoints()
 	self.ground:SetPoint("TOPLEFT", inset, -21)
 	self.ground:SetPoint("BOTTOMRIGHT", -inset, 2)

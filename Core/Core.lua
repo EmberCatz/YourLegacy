@@ -6,7 +6,7 @@ local Core = CreateFrame("Frame")
 ns.Core = Core
 YourLegacy = ns -- one global for /dump and other addons; everything else stays local
 
-local DB_VERSION = 13
+local DB_VERSION = 14
 Core.DB_VERSION = DB_VERSION -- read by tests
 local DEFAULTS = {
 	characters = {}, -- [Name-Realm] = Live.Snapshot()
@@ -49,14 +49,6 @@ local DEFAULTS = {
 		-- 1.1
 		announceNewPoint = true, -- on a new Legacy point, say which characters can spend it
 		barFill = "DefaultBlue", -- the fill of the progress bars: a profession rank-bar art (Theme.BAR_FILLS)
-		-- 1.1 developer sliders (Options > Data): the side panel's metal corners and its leather inset, in pixels
-		panelMetalLeft = -17,  -- x of the left corners (Blizzard: -8; -17 is the user's pick, 2026-11-10)
-		panelMetalRight = 4,   -- x of the right corners (Blizzard: 4)
-		panelGround = 2,       -- the leather's inset from the left and right edges (Blizzard's Bg: 2)
-		windowMetalLeft = -17, -- the main window's left corners (PortraitFrameTemplate: -13; the user's pick -17)
-		windowMetalRight = 5,  -- its right corners (4; the user's pick 5)
-		windowGround = 1,      -- its leather inset (2; the user's pick 1)
-		windowLogoDisc = 60,   -- the black disc behind the logo, its diameter (the user's ask, 2026-11-10)
 	},
 	-- status: open | progress | done | all; section: the Challenges tab ("" = its overview);
 	-- sort (1.0): game | closest | points | name, for the rows inside a section
@@ -146,6 +138,11 @@ local function Migrate(db)
 	if (db.version or 1) < 13 and type(db.settings) == "table" then
 		db.settings.mapBadges, db.settings.mapBadgesWithLegacyForever, db.settings.mapZoneCorner = nil, nil, nil
 	end
+	-- v14 (1.1): the frame sliders were a tuning tool; their values are built in now (UI/Window.lua, UI/Character.lua)
+	if (db.version or 1) < 14 and type(db.settings) == "table" then
+		for _, k in ipairs({ "panelMetalLeft", "panelMetalRight", "panelGround", "windowMetalLeft", "windowMetalRight",
+			"windowGround", "windowLogoDisc" }) do db.settings[k] = nil end
+	end
 	db.version = DB_VERSION
 	return db
 end
@@ -170,8 +167,6 @@ function Core:SetSetting(key, value)
 	if ns.UI and ns.UI.ApplySettings then ns.UI:ApplySettings() end
 	if key == "minimap" and ns.Minimap and ns.Minimap.Update then ns.Minimap:Update() end
 	if ns.MapZone then ns.MapZone:Refresh() end
-	if key:match("^window") and ns.UI and ns.UI.RestyleMetal then ns.UI:RestyleMetal() end
-	if (key:match("^panel") or key:match("^window")) and ns.Character then ns.Character:Restyle() end
 end
 
 -- withProgress reads the character's progress on multi-part challenges (Live.ProgressSnapshot); that walk is
