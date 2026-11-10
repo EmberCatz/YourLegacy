@@ -57,39 +57,16 @@ ns.ProfRank = ProfRank
 -- Forever): 4px on the right of both, 8px on the left of ButtonFrameTemplateNoPortrait, 13px on the left of
 -- PortraitFrameTemplate. 1.1 had 2px, so the metal overlapped (the user: too close, art spilling over).
 -- These leave 2px between the metal edges.
-Character.SIDE_GAP = 4 + 4 + 2         -- panel on the right: the window's right metal, the panel's left metal (mirrored: 4)
-Character.SIDE_GAP_LEFT = 4 + 13 + 2   -- panel on the left: the panel's right metal, the window's portrait metal
--- 1.1: the panel's left metal drawn as its right one, mirrored. Forever's left metal art for this layout is a thick
--- band (probe 2026-11-10: six 95px pieces, the left ones 8px outside the frame; the user saw it as leather
--- "overshoot"), and moving it inward covered the content. Blizzard's nine-slice can only mirror right from left,
--- so after it has built the frame the three left pieces take the right ones' atlases, flipped, at the mirrored spot.
-Character.MIRROR = { TopLeftCorner = "TopRightCorner", LeftEdge = "RightEdge", BottomLeftCorner = "BottomRightCorner" }
-function Character.MirrorLeft(border)
-	if not border then return end
-	for left, right in pairs(Character.MIRROR) do
-		local l, r = border[left], border[right]
-		local atlas = r and r.GetAtlas and r:GetAtlas()
-		local info = atlas and T.AtlasRect(atlas)
-		if l and info then
-			l:SetAtlas(atlas, true)
-			l:SetHorizTile(false)
-			l:SetVertTile(false)
-			l:SetTexCoord(info.rightTexCoord, info.leftTexCoord, info.topTexCoord, info.bottomTexCoord)
-		end
-	end
-	-- the corners at the mirror of the right ones (TopRightCorner x = 4: outward 4 → -4); the edge between them
-	local layout = NineSliceUtil and NineSliceUtil.GetLayout and NineSliceUtil.GetLayout("ButtonFrameTemplateNoPortrait")
-	local tr, br = layout and layout.TopRightCorner, layout and layout.BottomRightCorner
-	if border.TopLeftCorner and tr then
-		border.TopLeftCorner:ClearAllPoints()
-		border.TopLeftCorner:SetPoint("TOPLEFT", border, "TOPLEFT", -(tr.x or 0), tr.y or 0)
-	end
-	if border.BottomLeftCorner and br then
-		border.BottomLeftCorner:ClearAllPoints()
-		border.BottomLeftCorner:SetPoint("BOTTOMLEFT", border, "BOTTOMLEFT", -(br.x or 0), br.y or 0)
-	end
-end
+-- The panel's metal frame: Blizzard's ButtonFrameTemplateNoPortrait (NineSliceLayouts.lua). Empty = Blizzard's layout
+-- as is. To move a piece, give its new offset in pixels from the panel's corner, e.g.
+--   { TopLeftCorner = { x = -6 }, BottomLeftCorner = { x = -6 } }
+-- Blizzard's values: TopLeftCorner x -8 y 16, BottomLeftCorner x -8 y -3, TopRightCorner x 4 y 16,
+-- BottomRightCorner x 4 y -3 (negative x = further left). The edges run between the corners and follow them.
+-- Every piece is a 95px texture (probe, 2026-11-10). /reload after a change.
+Character.METAL = {}
 
+Character.SIDE_GAP = 4 + 8 + 2         -- panel on the right: the window's right metal, the panel's left metal
+Character.SIDE_GAP_LEFT = 4 + 13 + 2   -- panel on the left: the panel's right metal, the window's portrait metal
 local function Drawer()
 	local main = UI.frame
 	local f = CreateFrame("Frame", nil, main)
@@ -102,8 +79,7 @@ local function Drawer()
 	ground:SetPoint("TOPLEFT", 2, -GROUND_TOP)
 	ground:SetPoint("BOTTOMRIGHT", -2, 2)
 	if not T.AtlasCrop(ground, "Legacy-Challenge-BG", W - 4, main:GetHeight() - GROUND_TOP - 2, "TOP") then ground:Hide() end
-	f.border = T.NineSlice(f, "ButtonFrameTemplateNoPortrait", 20)
-	Character.MirrorLeft(f.border)
+	f.border = T.NineSlice(f, "ButtonFrameTemplateNoPortrait", 20, next(Character.METAL) and Character.METAL or nil)
 	f:EnableMouse(true)
 	f:Hide()
 	f:SetScript("OnHide", function() C_Timer.After(0, Character.SlideBack) end)
