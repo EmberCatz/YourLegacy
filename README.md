@@ -39,8 +39,9 @@ Open it with `/yl`, the minimap button, the addon compartment or a keybinding.
 - A card for every character you've logged in with: level, the next class milestone, both professions with the skill their next Legacy point needs, and the level a profession rank is waiting on.
 - The crafts that suit the class, and perk ranks that no longer help at the character's level.
 - Crafts on the account: who has each crafting profession, and which ones nobody has yet, so their challenges are still open.
-- Click a card for that character's gear, gold, zone, guild, item level, XP and professions. Characters you aren't playing show their last logout.
+- Click a card for that character's gear, gold, zone, guild, item level, XP and professions, in a panel beside the window. Characters you aren't playing show their last logout.
 - Give a character a role (Main, Alt, Crafter, Bank or Ignore). Ignore hides its card.
+- Each card shows how many Legacy points that character can still spend, and when the account earns a point a chat line names the characters that can spend it.
 - For classes you haven't started, plan the ruleset, race and two crafts and see how many Legacy points that plan is worth.
 
 ## Legacy Tree
@@ -54,18 +55,27 @@ Open it with `/yl`, the minimap button, the addon compartment or a keybinding.
 - Start from a preset (Leveling, Crafting, Open world, Hardcore), copy the ranks you have now, or save your own builds.
 - Share a plan as text and import someone else's from the My builds list.
 - The tab shows how many points you can still spend.
+- A plan that takes ranks back warns you first: undoing ranks needs a reset in Blizzard's panel, which costs gold. Hover the line for what the plan learns and takes back.
+- Perks that raise a chance say so in their tooltip.
 - The 16-point cap is always in view.
 - A button opens Blizzard's Legacy panel, which is where perks are learned.
 
 ## Dungeons, raids and the world map
 
+![World map](.previews/5-map-banner.png)
+
+*The zone banner on the world map: exploration, dungeons with their level range, and the share done.*
+
 - Step into a dungeon or raid that counts toward a challenge and a chat line tells you which one, and what's still missing there. After a boss dies it says whether the kill counted. `/yl here` repeats it at any time.
-- On the world map, a banner shows how far along the zone you're looking at is: this character's exploration, and every dungeon and raid with its entrance there. Drag it wherever you like.
+- On the world map, a banner shows how far along the zone you're looking at is: this character's exploration, and every dungeon and raid with its entrance there and its level range. Hover it for the areas you haven't found. Drag it wherever you like.
+- Forever doesn't tell addons where dungeon entrances are, so the banner uses Questie's dungeon list when Questie is installed (plus the new Forever dungeons Questie doesn't list yet).
+- With OpenMap installed, its dungeon cards get a Your Legacy section saying what the dungeon still counts for.
+- `/yl here` also works in the open world: what the zone still counts for and the areas left to find.
 - A Your Legacy button sits with the other map buttons. Click it to switch the banner off, put it back in its corner, or open the addon.
 
 ## Options
 
-Grouped into Window (size from 80 to 150%, lock, close in combat, animations), Chat and sound (a chat line, a guild announcement and a sound when you earn a challenge, reminders at login for unspent points and rewards to collect, the dungeon and raid help), Maps (the zone banner, the map button, the minimap button), How Legacy works (the rules Your Legacy relies on and how sure we are of each) and Data (an export of the addon's data as text you can copy).
+Grouped into Window (size from 80 to 150%, the progress bars' fill texture, lock, close in combat, animations), Chat and sound (a chat line, a guild announcement and a sound when you earn a challenge, reminders at login for unspent points and rewards to collect, the dungeon and raid help), Maps (the zone banner, the map button, the minimap button), How Legacy works (the rules Your Legacy relies on and how sure we are of each) and Data (an export of the addon's data, a report to paste into a bug report, and a check of what the addon relies on in your client).
 
 ## Good to know
 
@@ -83,7 +93,9 @@ Grouped into Window (size from 80 to 150%, lock, close in combat, animations), C
 | `/yl` | Open or close the window |
 | `/yl options` | Open the options |
 | `/yl status` | Print your points in chat |
-| `/yl here` | Say what the dungeon or raid you're in counts toward |
+| `/yl here` | Say what the dungeon, raid or zone you're in still counts toward |
+| `/yl report` | Build a report for a bug report (add a challenge's name for its parts) |
+| `/yl probe` | Check what Your Legacy relies on in your client |
 | `/yl export` | Show the saved data as text you can copy |
 | `/yl reset` | Clear everything the addon saved |
 
@@ -96,7 +108,7 @@ CurseForge page: <https://www.curseforge.com/wow/addons/your-legacy>
 
 ## Feedback
 
-Found a bug or a number that looks wrong? Open an issue here or leave a comment on CurseForge saying what you expected and what you saw, and which page it was on.
+Found a bug or a number that looks wrong? Open an issue here or leave a comment on CurseForge saying what you expected and what you saw, and which page it was on. `/yl report` gives you text to paste along with it.
 
 ## License
 
