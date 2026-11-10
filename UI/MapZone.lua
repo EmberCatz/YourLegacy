@@ -115,6 +115,42 @@ function Z.Lines(mapID)
 	return lines, goals > 0 and sum / goals or 0, done, goals, name
 end
 
+-- 1.1: /yl here in the open world. What the zone you stand in still holds: its share done, the goals left, and the
+-- areas this character hasn't found. Returns false when the zone isn't known.
+Z.MAX_AREAS = 8
+function Z.Here()
+	local mapID = Live.PlayerMap()
+	if not mapID then return false end
+	local lines, ratio, done, goals, name = Z.Lines(mapID)
+	name = name or Live.MapName(mapID) or "?"
+	local say = function(text) ns.Core:Print(text) end
+	if goals == 0 then
+		say(string.format(L["Nothing in %s counts toward a Legacy challenge."], name))
+		return true
+	end
+	if done >= goals then
+		say(string.format(L["%s: all of its Legacy work is done."], name))
+		return true
+	end
+	say(string.format(L["%s: %s of its Legacy work done, %d of %d goals left."], name, Z.Percent(ratio), goals - done, goals))
+	for _, line in ipairs(lines) do
+		if not line.done and not line.sub then say(line.text) end
+	end
+	local explore = Live.ExploreProgress(name)
+	if explore and not explore.nested and #explore.missing > 0 then
+		say(string.format(L["Still to find: %s"], Z.NameList(explore.missing)))
+	end
+	return true
+end
+
+function Z.NameList(list)
+	local shown = {}
+	for i = 1, math.min(#list, Z.MAX_AREAS) do shown[i] = list[i] end
+	local text = table.concat(shown, ", ")
+	if #list > Z.MAX_AREAS then text = text .. ", " .. string.format(L["and %d more"], #list - Z.MAX_AREAS) end
+	return text
+end
+
 -- "48%": rounded down, so 100% means every goal here is done.
 function Z.Percent(ratio) return string.format("%d%%", math.floor(math.max(0, math.min(1, ratio)) * 100 + 1e-6)) end
 
@@ -168,7 +204,17 @@ local function Create(parent)
 	end)
 	box:SetScript("OnEnter", function(self)
 		GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-		GameTooltip:SetText(L["Drag to move it."], T.unpack(C.muted))
+		-- 1.1: the areas this character still has to find on this map
+		local missing = self.missing or {}
+		if #missing > 0 then
+			GameTooltip:SetText(L["Still to find"], T.unpack(C.head))
+			for i = 1, math.min(#missing, 20) do GameTooltip:AddLine(missing[i], T.unpack(C.white)) end
+			if #missing > 20 then GameTooltip:AddLine(string.format(L["and %d more"], #missing - 20), T.unpack(C.muted)) end
+			GameTooltip:AddLine(" ")
+			GameTooltip:AddLine(L["Drag to move it."], T.unpack(C.muted))
+		else
+			GameTooltip:SetText(L["Drag to move it."], T.unpack(C.muted))
+		end
 		GameTooltip:Show()
 	end)
 	box:SetScript("OnLeave", function() GameTooltip:Hide() end)
@@ -224,6 +270,8 @@ function Z:Layout()
 	box.hint:SetTextColor(T.unpack(ratio >= 1 and C.goldHi or C.white))
 	box.bar:SetValue(ratio)
 	box.goals = { done = done, total = goals }
+	local explore = Live.ExploreProgress(name)
+	box.missing = explore and not explore.nested and explore.missing or {}
 	for i, r in ipairs(box.rows) do
 		local line = lines[i]
 		r:SetShown(line ~= nil)

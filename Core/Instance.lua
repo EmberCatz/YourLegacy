@@ -98,9 +98,12 @@ local function Lines(place, m, forced)
 				out[#out + 1] = string.format(L["Killing %s gives the credit."], I.BossFor(missing[1]))
 			end
 			-- off until in-game check 4 shows an outleveled clear doesn't count (Data.OUTLEVEL_WARNING)
-			local bracket = Data.OUTLEVEL_WARNING and Bracket(m)
-			if bracket and Live.Level() > bracket.max then
+			local bracket = Bracket(m)
+			if bracket and Data.OUTLEVEL_WARNING and Live.Level() > bracket.max then
 				out[#out + 1] = string.format(L["You're above level %d, so clears here may not count."], bracket.max) .. ns.Pages.RuleTag("outlevel")
+			elseif bracket and Live.Level() >= bracket.max - Data.OUTLEVEL_MARGIN then
+				-- 1.1: near or past the list's top level, say the range; no claim about whether it still counts
+				out[#out + 1] = string.format(L["These dungeons are for levels %d to %d. You're level %d."], bracket.min, bracket.max, Live.Level())
 			end
 		end
 	end
@@ -120,7 +123,8 @@ end
 function I:Report(forced)
 	if forced then self:Update() end
 	if not here then
-		if forced then Core:Print(L["You're not in a dungeon or raid."]) end
+		-- 1.1: in the open world, /yl here speaks for the zone instead
+		if forced and not (ns.MapZone and ns.MapZone.Here()) then Core:Print(L["You're not in a dungeon or raid."]) end
 		return
 	end
 	if not forced and (told[here.place.name] or not Core:Setting("instanceHelper")) then return end

@@ -189,7 +189,8 @@ local function CreateCharacterCard(parent)
 			GameTooltip:AddLine(string.format(L["%s %d: %s"], P.PerkName(d.id), d.rank, L[d.why]), T.unpack(C.warn))
 		end
 		if self.deadTotal and self.deadTotal > 0 then
-			GameTooltip:AddLine(Data.PERK_RESET_IN_PANEL and L["Reset the tree in Blizzard's Legacy panel to spend them elsewhere."]
+			GameTooltip:AddLine(Data.PERK_RESET_IN_PANEL
+				and (string.format(L["Reset the tree in Blizzard's Legacy panel to spend them elsewhere (%d gold)."], Data.RESET_COST_GOLD) .. P.RuleTag("reset"))
 				or (L["These ranks no longer help at this level."] .. P.RuleTag("deadPerks")), T.unpack(C.muted), true)
 		end
 		for _, w in ipairs(self.warnings or {}) do GameTooltip:AddLine(P.OutlevelText(w), T.unpack(C.warn)) end
@@ -239,7 +240,7 @@ function roster.Coverage()
 	local out = {}
 	for _, craft in ipairs(Data.CRAFT_ORDER) do
 		local holders, planned = {}, {}
-		for _, ch in pairs(db().characters) do
+		for _, ch in pairs(ns.Core:Characters()) do
 			for _, p in ipairs(ch.professions or {}) do
 				if p.skillLine == craft.id then holders[#holders + 1] = { name = ch.name, skill = p.skill or 0 } end
 			end
@@ -420,9 +421,13 @@ local function FillCard(card, entry)
 	local ranks = {}
 	for id, r in pairs(ch.perks or {}) do ranks[tonumber(id) or id] = r end
 	card.dead, card.deadTotal = P.DeadPerks(ranks, level)
-	card.perks:SetText(card.deadTotal > 0
+	-- 1.1: points this character could still spend (same ruleset only: Hardcore and Normal earn apart)
+	card.unspent = ns.Core:UnspentFor(entry.key)
+	local perksText = card.deadTotal > 0
 		and string.format(L["%d / %d perks spent, %d no longer help"], ch.spent or 0, Data.SPEND_CAP, card.deadTotal)
-		or string.format(L["%d / %d perks spent"], ch.spent or 0, Data.SPEND_CAP))
+		or string.format(L["%d / %d perks spent"], ch.spent or 0, Data.SPEND_CAP)
+	if card.unspent > 0 then perksText = perksText .. ", " .. T.Hex(C.goldHi) .. string.format(L["%d to spend"], card.unspent) .. "|r" end
+	card.perks:SetText(perksText)
 	card.perks:SetTextColor(T.unpack(card.deadTotal > 0 and C.warn or C.ink2))
 	card.warnings = P.OutlevelWarnings(level)
 	card.warn:SetText(card.warnings[1] and P.OutlevelText(card.warnings[1]) or "")
@@ -477,7 +482,7 @@ local function RefreshRoster()
 	local cols, cardW = Columns(width)
 
 	local groups, started, ignored = { normal = {}, hardcore = {} }, {}, 0
-	for key, ch in pairs(db().characters) do
+	for key, ch in pairs(ns.Core:Characters()) do
 		started[ch.class] = true
 		if P.Role(key) == "ignore" then ignored = ignored + 1 end
 		if P.Role(key) ~= "ignore" or db().ui.showIgnored then

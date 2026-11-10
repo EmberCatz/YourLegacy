@@ -271,8 +271,8 @@ end
 
 -- The character's data: live for the one you're playing, the stored snapshot for the rest.
 local function DataFor(key)
-	if key == Live.CharacterKey() then return Live.Snapshot(), true end
-	return db().characters[key], false
+	if key == Live.CharacterKey() then return Live.DemoCharacter(Live.Snapshot()), true end
+	return ns.Core:Characters()[key], false
 end
 
 local function RefreshCharacter(f)
@@ -342,7 +342,7 @@ end
 
 local function CraftHolders()
 	local holders = {}
-	for _, ch in pairs(db().characters) do
+	for _, ch in pairs(ns.Core:Characters()) do
 		for _, p in ipairs(ch.professions or {}) do
 			if p.skillLine and Data.CRAFTS[p.skillLine] then
 				local list = holders[p.skillLine] or {}

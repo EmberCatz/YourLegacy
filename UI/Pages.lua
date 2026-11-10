@@ -82,6 +82,13 @@ local function OpenBrackets()
 	end
 	return bracketCache
 end
+-- 1.1: the bracket a dungeon list belongs to, found by one of its dungeons' criteria asset IDs.
+function P.BracketOf(criteria)
+	for _, c in ipairs(criteria or {}) do
+		for _, b in ipairs(Data.DUNGEON_BRACKETS) do if c.assetID == b.marker then return b end end
+	end
+end
+
 function P.OutlevelWarnings(level)
 	local out = {}
 	if not Data.OUTLEVEL_WARNING then return out end
@@ -170,6 +177,11 @@ function P.ShowChallengeTooltip(owner, item)
 	local criteria = Live.Criteria(item.id)
 	local rule, ruleKey = P.CreditRule(item, criteria)
 	if rule then GameTooltip:AddLine(rule .. P.RuleTag(ruleKey), T.unpack(C.head)) end
+	-- 1.1: a dungeon list's level range (Data.DUNGEON_BRACKETS), with this character's level
+	local bracket = P.BracketOf(criteria)
+	if bracket and not item.completed then
+		GameTooltip:AddLine(string.format(L["These dungeons are for levels %d to %d. You're level %d."], bracket.min, bracket.max, Live.Level()), T.unpack(C.ink2))
+	end
 	local explored = ExplorationLines(item)
 	-- 1.0 instance helper: inside a dungeon or raid this challenge counts for, its parts there are gold
 	local placeName, hereKeys

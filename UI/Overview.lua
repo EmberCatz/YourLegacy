@@ -171,7 +171,7 @@ local function RefreshOverview()
 	local earned, max = Live.Earned(), Live.MaxAvailable()
 	local total = math.max(max, challenges.total)
 	local hardcore = Live.IsHardcore()
-	db().pools[hardcore and "hardcore" or "normal"] = earned
+	if not Live.demo then db().pools[hardcore and "hardcore" or "normal"] = earned end
 
 	overview.points:SetText(earned)
 	overview.of:SetText(string.format("%d / %d", earned, total))

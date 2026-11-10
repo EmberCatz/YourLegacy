@@ -117,6 +117,7 @@ function Builders.chat(body)
 	rows[#rows + 1] = Heading(body, L["When you earn a challenge"])
 	SwitchRow(body, rows, L["Announce earned challenges"], L["Print a chat line when you earn a Legacy challenge."], "announce")
 	SwitchRow(body, rows, L["Announce in guild chat"], L["Also post earned challenges to your guild, as a link they can click."], "announceGuild")
+	SwitchRow(body, rows, L["Say who can spend a new point"], L["When the account earns a Legacy point, list the characters that can still spend one."], "announceNewPoint")
 	local r = Row(body, L["Sound for earned challenges"], L["Plays a sound from the game when you earn a Legacy challenge."], 54)
 	r.switch = Switch(r, "sound")
 	r.sound = T.Dropdown(r, 150, function()
@@ -223,6 +224,10 @@ function Builders.data(body)
 	r.button = Control(r, T.ActionButton(r, L["Export"]))
 	r.button:SetScript("OnClick", function() if ns.Export then ns.Export:Show() end end)
 	rows[#rows + 1] = r
+	r = Row(body, L["Report a problem"], L["Shows a report to copy into a bug report: versions, settings and what the game says about your Legacy progress. Type /yl report and a challenge's name for its parts."])
+	r.button = Control(r, T.ActionButton(r, L["Report"]))
+	r.button:SetScript("OnClick", function() if ns.Report then ns.Report:Show("") end end)
+	rows[#rows + 1] = r
 	r = Row(body, L["Capture game state"], L["Records what the game reports to Your Legacy, for bug reports. Type /reload afterwards to save it."])
 	r.button = Control(r, T.ActionButton(r, L["Capture"]))
 	r.button:SetScript("OnClick", function() ns.Core:Capture() end)
@@ -234,8 +239,24 @@ function Builders.data(body)
 	r.danger = true
 	rows[#rows + 1] = r
 	-- 0.9.1: the developer row. Its tools stay greyed out until the switch unlocks them.
-	r = Row(body, L["Developer tools"], L["Turns on the screenshot tool below, for tracking down layout bugs."])
+	r = Row(body, L["Developer tools"], L["Turns on the tools below, for tracking down layout bugs."])
 	r.switch = Switch(r, "devTools")
+	r.danger = true
+	rows[#rows + 1] = r
+	-- 1.1: fake progress for looking at bars and buttons part-way and full (Live.demo, never saved)
+	r = Row(body, L["Debug fill"], L["Shows made-up progress everywhere so you can check how bars, checks and buttons look part-way and full. Your real data isn't changed, and it turns off on /reload."])
+	r.fill = Control(r, T.Dropdown(r, 130, function()
+		return {
+			{ "off", L["Off"] }, { "0", "0%" }, { "25", "25%" }, { "50", "50%" }, { "75", "75%" }, { "100", "100%" },
+			{ "mixed", L["Mixed"] },
+		}
+	end, function(key)
+		if not S("devTools") then return end
+		ns.Live.SetDemo(key == "off" and nil or key == "mixed" and "mixed" or (tonumber(key) or 0) / 100)
+		ns.Core:Print(key == "off" and L["Debug fill is off. Real progress again."] or L["Debug fill is on. Nothing you see now is real progress."])
+		ns.Core:RequestRefresh()
+	end), -17)
+	r.devFill = true
 	r.danger = true
 	rows[#rows + 1] = r
 	r = Row(body, L["Screenshot every page"], L["Screenshots every page and tab, for bug reports. Type /reload afterwards to save the layout."])
@@ -249,7 +270,7 @@ function Builders.data(body)
 	T.Border(rows.dangerBox, C.bad, 0.7)
 	local help = T.Text(body, T.F.small, C.muted)
 	help:SetWidth(ROW_W)
-	help:SetText(L["Slash commands: /yl opens the window, /yl options this page, /yl status prints your points, /yl here says what the dungeon you are in counts for."])
+	help:SetText(L["Slash commands: /yl opens the window, /yl options this page, /yl status prints your points, /yl here says what the dungeon or zone you are in still holds, /yl report makes a bug report."])
 	rows.footer = help
 	return rows
 end
@@ -314,6 +335,14 @@ local function RefreshRow(r)
 		r.desc:SetText(ns.Minimap and ns.Minimap:UsesLibrary()
 			and L["Uses LibDBIcon from another addon, so minimap button collectors can gather it. Drag it to move it."]
 			or L["Drag the button around the minimap to move it."])
+	end
+	if r.devFill then
+		local unlocked = S("devTools") and true or false
+		local d = ns.Live.demo
+		r.fill:SetValue(d == nil and "off" or d == "mixed" and "mixed" or tostring(math.floor(d * 100 + 0.5)))
+		r.fill:SetEnabled(unlocked)
+		r.label:SetAlpha(unlocked and 1 or 0.45)
+		r.desc:SetAlpha(unlocked and 1 or 0.45)
 	end
 	if r.shots then
 		local unlocked = S("devTools") and true or false

@@ -65,6 +65,27 @@ local function Same(a, b)
 	return true
 end
 
+-- 1.1 reset warning: what a plan changes against the current ranks. Returns { learn = { {node, from, to} },
+-- takeBack = { ... }, trees = { tree name with ranks taken back } }. Taking a rank back means resetting its tree in
+-- Blizzard's Legacy panel, which costs gold (Data.RESET_COST_GOLD, forum reports 2026-11-10) and has no confirmation.
+function ns.TreeDiff(plan, current, trees)
+	local out = { learn = {}, takeBack = {}, trees = {} }
+	if not (plan and current) then return out end
+	for _, t in ipairs(trees) do
+		local hit = false
+		for _, n in ipairs(t.nodes) do
+			local cur, want = current[n.id] or 0, plan[n.id] or 0
+			if want > cur then out.learn[#out.learn + 1] = { node = n, from = cur, to = want }
+			elseif want < cur then
+				out.takeBack[#out.takeBack + 1] = { node = n, from = cur, to = want }
+				hit = true
+			end
+		end
+		if hit then out.trees[#out.trees + 1] = L[t.name] end
+	end
+	return out
+end
+
 -- What still blocks a node in a set of ranks: points missing in its tree, and prerequisite perks not at max rank.
 local function Blockers(n, t, ranks)
 	local inTree, byID = 0, {}
@@ -110,6 +131,11 @@ local function NodeTooltip(self)
 		end
 	end
 	if self.dead then GameTooltip:AddLine(L[self.dead.why], T.unpack(C.warn), true) end
+	local note = Data.PERK_NOTES[n.id]
+	if note then GameTooltip:AddLine(L[note], T.unpack(C.muted), true) end
+	if self.planned and self.planned < (self.current or 0) then
+		GameTooltip:AddLine(L["The plan takes ranks back here, which needs a reset of this tree."] .. P.RuleTag("reset"), T.unpack(C.warn), true)
+	end
 	GameTooltip:AddLine(L["Left-click adds a rank to the plan, right-click removes one."], T.unpack(C.muted))
 	GameTooltip:Show()
 end
@@ -515,6 +541,35 @@ local function BuildTree(page)
 	tree.cap:SetPoint("BOTTOMLEFT", tree.total, "BOTTOMRIGHT", 2, 1)
 	tree.summary = T.Text(body, T.F.body, C.muted)
 	tree.summary:SetPoint("LEFT", tree.cap, "RIGHT", 12, 0)
+	-- 1.1: hover the summary for what the plan changes, perk by perk
+	tree.diffHit = CreateFrame("Frame", nil, body)
+	tree.diffHit:SetPoint("TOPLEFT", tree.summary, "TOPLEFT", -2, 2)
+	tree.diffHit:SetPoint("BOTTOMRIGHT", tree.summary, "BOTTOMRIGHT", 2, -2)
+	tree.diffHit:EnableMouse(true)
+	tree.diffHit:SetScript("OnEnter", function(self)
+		local diff = tree.diff
+		if not diff or (#diff.learn == 0 and #diff.takeBack == 0) then return end
+		GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
+		GameTooltip:SetText(L["What this plan changes"], T.unpack(C.ink))
+		local function lines(list, color)
+			for _, d in ipairs(list) do
+				local r, g, b = T.unpack(C.ink2)
+				local r2, g2, b2 = T.unpack(color)
+				GameTooltip:AddDoubleLine(d.node.name, string.format("%d > %d", d.from, d.to), r, g, b, r2, g2, b2)
+			end
+		end
+		if #diff.learn > 0 then
+			GameTooltip:AddLine(L["Learn"], T.unpack(C.head))
+			lines(diff.learn, C.teal)
+		end
+		if #diff.takeBack > 0 then
+			GameTooltip:AddLine(L["Take back"], T.unpack(C.head))
+			lines(diff.takeBack, C.warn)
+			GameTooltip:AddLine(string.format(L["Taking ranks back means resetting the tree in Blizzard's Legacy panel. Players report it costs %d gold and asks for no confirmation, so check before you click Reset."], Data.RESET_COST_GOLD), T.unpack(C.muted), true)
+		end
+		GameTooltip:Show()
+	end)
+	tree.diffHit:SetScript("OnLeave", function() GameTooltip:Hide() end)
 	tree.legend = T.Text(body, T.F.small, C.muted, "RIGHT")
 	tree.legend:SetPoint("TOPRIGHT", 0, -48)
 	tree.legend:SetText(T.Hex(C.bad) .. "5|r " .. L["points this tree still needs"] .. "     "
@@ -584,9 +639,18 @@ local function RefreshTree()
 	local spent = key == Live.CharacterKey() and spentLive or (ch and ch.spent) or 0
 	local who = ch and ch.name or key
 	local _, wasted = P.DeadPerks(plan or current, level)
+	local diff = ns.TreeDiff(plan, current, trees)
+	tree.diff = diff
 	if wasted > 0 then
 		-- ranks (planned, else learned) in perks that no longer help at this character's level
 		tree.summary:SetText(string.format(L["%d points sit in perks that no longer help at level %d."], wasted, level) .. P.RuleTag("deadPerks"))
+		tree.summary:SetTextColor(T.unpack(C.warn))
+	elseif #diff.takeBack > 0 then
+		-- 1.1: the loudest complaint after launch is the 10g reset with no confirmation; say so before it happens
+		local back = 0
+		for _, d in ipairs(diff.takeBack) do back = back + d.from - d.to end
+		tree.summary:SetText(string.format(L["Takes back %d ranks: reset %s first (%d gold a reset)."], back,
+			table.concat(diff.trees, ", "), Data.RESET_COST_GOLD) .. P.RuleTag("reset"))
 		tree.summary:SetTextColor(T.unpack(C.warn))
 	elseif not plan then
 		tree.summary:SetText(string.format(L["No plan for %s yet. Load a build or click perks."], who))

@@ -16,17 +16,63 @@ local function try(fn, ...)
 end
 Live.try = try
 
+---------------------------------------------------------------- 1.1 debug fill (Options > Data, developer tools)
+-- Fakes progress so every bar, check and button can be seen part-way and full without playing for it. nil = off,
+-- a number 0-1 = every challenge, part, rank and character at that share, "mixed" = a spread of 0, 25, 50, 75 and
+-- 100% by ID. Session only: never saved, and while it's on no character snapshot is recorded (Core:RecordCharacter).
+Live.demo = nil
+Live.DEMO_STEPS = { 0, 0.25, 0.5, 0.75, 1 }
+function Live.DemoRatio(seed)
+	local d = Live.demo
+	if type(d) == "number" then return math.max(0, math.min(1, d)) end
+	if d == "mixed" then return Live.DEMO_STEPS[(math.floor(tonumber(seed) or 0) % #Live.DEMO_STEPS) + 1] end
+	return nil
+end
+function Live.SetDemo(value)
+	Live.demo = value
+	Live.Invalidate()
+end
+
+-- A character snapshot as the debug fill shows it (a copy; the saved one is untouched).
+function Live.DemoCharacter(ch)
+	if not Live.demo or type(ch) ~= "table" then return ch end
+	local seed = 0
+	for i = 1, #(ch.name or "") do seed = seed + (ch.name or ""):byte(i) end
+	local r = Live.DemoRatio(seed)
+	local copy = {}
+	for k, v in pairs(ch) do copy[k] = v end
+	copy.level = math.max(1, math.floor(Data.MAX_LEVEL * r + 0.5))
+	copy.xpMax = ch.xpMax or 1000
+	copy.xp = math.floor(copy.xpMax * r)
+	copy.rested = math.floor(copy.xpMax * 1.5 * r)
+	copy.spent = math.floor(Data.SPEND_CAP * r + 0.5)
+	copy.professions = {}
+	for i, p in ipairs(ch.professions or {}) do
+		local q = {}
+		for k, v in pairs(p) do q[k] = v end
+		q.max = 300
+		q.skill = math.max(1, math.floor(300 * r))
+		copy.professions[i] = q
+	end
+	return copy
+end
+
 function Live.IsHardcore()
 	return C_GameRules and try(C_GameRules.IsHardcoreActive) and true or false
 end
 
 -- Total Legacy points the account has earned (= the reward track's renown level).
 function Live.Earned()
+	if Live.demo then
+		local c = Live.Challenges()
+		return type(Live.demo) == "number" and math.floor(c.total * Live.demo + 0.5) or c.done
+	end
 	return C_MajorFactions and try(C_MajorFactions.GetCurrentRenownLevel, Data.REWARD_TRACK_FACTION_ID) or 0
 end
 
 -- Points obtainable right now (Blizzard's panel shows "earned / this").
 function Live.MaxAvailable()
+	if Live.demo then return Live.Challenges().total end
 	return C_Traits and try(C_Traits.GetMaxAvailableTraitCurrency, Data.POINTS_CURRENCY_ID, false) or 0
 end
 
@@ -94,6 +140,10 @@ function Live.Rewards()
 		r.kind, r.glyph = known and known.kind, known and known.glyph or "Star"
 		r.icon = r.itemID and C_Item and try(C_Item.GetItemIconByID, r.itemID) or nil
 		r.owned = Live.RewardOwned(r.itemID)
+		if Live.demo then
+			-- unlocked rewards: owned, except every other one in "mixed" so the "waiting" state shows too
+			r.owned = Live.Earned() >= r.level and not (Live.demo == "mixed" and (#out % 2 == 1))
+		end
 		out[#out + 1] = r
 	end
 	table.sort(out, function(a, b) return a.level < b.level end)
@@ -168,6 +218,8 @@ function Live.Criteria(achievementID)
 	for i = 1, try(GetAchievementNumCriteria, achievementID) or 0 do
 		local text, ctype, done, qty, req, charName, flags, assetID, _, criteriaID = try(GetAchievementCriteriaInfo, achievementID, i)
 		if text and text ~= "" then
+			local demo = Live.DemoRatio(achievementID)
+			if demo then done = i <= math.floor((try(GetAchievementNumCriteria, achievementID) or 0) * demo + 0.5) end
 			out[#out + 1] = { text = text, done = done and true or false, qty = qty, req = req, type = ctype, assetID = assetID,
 				charName = charName ~= "" and charName or nil, flags = flags, key = criteriaID or assetID or i }
 		end
@@ -365,6 +417,11 @@ function Live.MapCornerClear(container, corner, extra, skip)
 	return dx, dy
 end
 
+-- 1.1: the zone map the character stands in (/yl here outside instances).
+function Live.PlayerMap()
+	return C_Map and try(C_Map.GetBestMapForUnit, "player")
+end
+
 function Live.MapName(mapID)
 	local info = mapID and C_Map and try(C_Map.GetMapInfo, mapID)
 	return info and info.name
@@ -411,14 +468,14 @@ function Live.ExploreProgress(mapName)
 		end
 	end
 	if not node then return nil end
-	local done, total = 0, 0
+	local done, total, missing = 0, 0, {}
 	for _, c in ipairs(Live.Criteria(node.id)) do
 		total = total + 1
-		if c.done then done = done + 1 end
+		if c.done then done = done + 1 else missing[#missing + 1] = c.text end
 	end
 	if total == 0 then return nil end
 	return { id = node.id, key = node.key, explorerID = node.explorerID, depth = node.depth, done = done, total = total,
-		nested = IsNested(node.id) }
+		nested = IsNested(node.id), missing = missing }
 end
 
 -- Dungeon and raid entrances on a map (the data Blizzard's own entrance pins use): name, normalized x / y,
@@ -434,6 +491,16 @@ function Live.DungeonEntrances(mapID)
 		end
 	end
 	return out
+end
+
+-- 1.1 /yl report: the client and the addon, as the game reports them.
+function Live.ClientInfo()
+	local version, build = try(GetBuildInfo)
+	local meta = C_AddOns and C_AddOns.GetAddOnMetadata or GetAddOnMetadata
+	return {
+		version = version or "?", build = build or "?", locale = try(GetLocale) or "?",
+		addon = try(meta, "YourLegacy", "Version") or "?",
+	}
 end
 
 function Live.AddOnLoaded(name)
@@ -612,6 +679,12 @@ function Live.Challenges()
 						end
 						gate = ProfessionGate(sub, description, chars)
 					end
+					local demo = Live.DemoRatio(id)
+					if demo then
+						completed, gate = demo >= 1, nil
+						ratio, detail, who = demo, string.format("%d%%", math.floor(demo * 100)), nil
+						if completed then month, day, year = 11, 10, 26 end
+					end
 					items[#items + 1] = {
 						id = id, name = name, description = description, completed = completed and true or false, icon = icon,
 						points = points, ratio = ratio, detail = detail, who = who, gate = gate, sub = sub, path = path,
@@ -684,6 +757,8 @@ function Live.Trees(includeHidden)
 						if not icon and def.spellID and C_Spell then icon = try(C_Spell.GetSpellTexture, def.spellID) end
 					end
 					local rank = node.ranksPurchased or node.currentRank or 0
+					local demo = Live.DemoRatio(nodeID)
+					if demo then rank = math.floor((node.maxRanks or 1) * demo + 0.5) end
 					-- Forever build 70790 has two visible 1-rank nodes per tree that all use placeholder spell 1317256,
 					-- which the client names UNKNOWN (unreleased perks?). Label them instead of printing "Unknown".
 					local unnamed = not name or name == "" or name == (UNKNOWN or "Unknown")

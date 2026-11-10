@@ -138,7 +138,7 @@ Data.DEAD_PERKS = {
 -- Options > How Legacy works). confirmed = the game or Blizzard shows it; reported = guides and players say so,
 -- not yet proven in game; unchecked = nobody has tested it. Update a status (and RULES_DATE) when an in-game
 -- check settles it (research/17-v09-feedback-features.md has the checklist).
-Data.RULES_DATE = "2026-11-09"
+Data.RULES_DATE = "2026-11-10"
 Data.RULES = {
 	{ key = "once", status = "confirmed", text = "A challenge is earned once for the whole account.",
 		source = "Every challenge carries the game's account flag." },
@@ -152,8 +152,10 @@ Data.RULES = {
 		source = "Guides and players. Not tested in game yet." },
 	{ key = "deadPerks", status = "reported", text = "Well Rested and Talented stop helping at level 60.",
 		source = "How the perks are described. Not tested in game yet." },
-	{ key = "reset", status = "reported", text = "Unlearning perks happens at a class trainer and costs gold.",
-		source = "Guides and beta players. Not tested in game yet." },
+	{ key = "reset", status = "reported", text = "Taking ranks back means resetting the tree in the Legacy panel, which costs 10 gold.",
+		source = "Players on Blizzard's forums, 2026-11-10. The panel's reset button asks for no confirmation." },
+	{ key = "gathering", status = "confirmed", text = "Gathering professions, fishing, cooking and first aid earn no Legacy points.",
+		source = "Only the six crafts have Legacy challenges." },
 	{ key = "hardcore", status = "reported", text = "Hardcore challenges count everywhere; Normal ones don't count on Hardcore.",
 		source = "Guides. Hardcore isn't out yet." },
 	{ key = "outlevel", status = "unchecked", text = "A dungeon cleared above its bracket's top level may not count.",
@@ -162,10 +164,22 @@ Data.RULES = {
 Data.RULE_BY_KEY = {}
 for _, r in ipairs(Data.RULES) do Data.RULE_BY_KEY[r.key] = r end
 
--- UNVERIFIED: whether ranks can be reset in the Legacy panel without a trainer or a cost. Blizzard_LegacyTree.lua has
--- a reset button (C_Traits.ResetTree, a whole tree, staged until Apply); guides say a respec happens at a class
--- trainer for a cost that climbs. Off: the copy says the ranks no longer help and promises no reset. In-game check 2.
-Data.PERK_RESET_IN_PANEL = false
+-- Ranks are reset in the Legacy panel. Blizzard_LegacyTree.lua has a reset button (C_Traits.ResetTree, a whole tree,
+-- staged until Apply). Players on Blizzard's forums (2026-11-10, "I paid my 10g fine") report it costs 10 gold and
+-- asks for no confirmation. UNVERIFIED in our own game: the cost (RESET_COST_GOLD) and whether it's per tree.
+Data.PERK_RESET_IN_PANEL = true
+Data.RESET_COST_GOLD = 10
+
+-- 1.1: notes for perks players misread (forum, 2026-11-10: "Bountiful Harvest, zero increase"). Most profession
+-- perks raise a chance, so a short session can show nothing. Node IDs from the 2026-11-06 capture; effects from
+-- research/01-legacy-system-reference.md (perk trees table).
+Data.PERK_NOTES = {
+	[110291] = "Only scarce materials (gems, rare drops) increase, not ore, herbs or leather. It raises a chance, so it shows over many nodes.", -- Bountiful Harvest
+	[110290] = "Raises the chance of a skill-up. It shows over many crafts, not a few.", -- Working Overtime
+	[110292] = "A chance on each crate turn-in, not every time.", -- Performance Bonus
+	[110289] = "A chance of an extra result on each cook, not every time.", -- Master Chef
+	[110293] = "A chance of an extra fish while a lure is on, not every catch.", -- Luremaster
+}
 
 -- The achievement flag for account-wide progress. Blizzard_AchievementUI (Forever) tests the client's global
 -- ACHIEVEMENT_FLAGS_ACCOUNT; the value below is retail's, used only when the global is missing. UNVERIFIED on Forever.

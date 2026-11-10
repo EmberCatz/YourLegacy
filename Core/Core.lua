@@ -44,6 +44,8 @@ local DEFAULTS = {
 		mapZoneWithLegacyForever = false, -- the same while Legacy Forever is loaded (it shows zone progress too)
 		mapZonePos = {},       -- { x, y } where the player dragged the zone box, from the map's top-left (empty = beside the map buttons)
 		mapButton = true,      -- our button on the world map with the map options (UI/MapButton.lua)
+		-- 1.1
+		announceNewPoint = true, -- on a new Legacy point, say which characters can spend it
 	},
 	-- status: open | progress | done | all; section: the Challenges tab ("" = its overview);
 	-- sort (1.0): game | closest | points | name, for the rows inside a section
@@ -149,7 +151,7 @@ end
 -- withProgress reads the character's progress on multi-part challenges (Live.ProgressSnapshot); that walk is
 -- costly, so it runs at login, logout and when a criterion is earned. Every other snapshot keeps the last reading.
 function Core:RecordCharacter(withProgress)
-	if not self.db then return end
+	if not self.db or Live.demo then return end -- the debug fill's fake progress never reaches the saved data
 	local key = Live.CharacterKey()
 	local snap, old = Live.Snapshot(), self.db.characters[key]
 	if withProgress or not (old and old.explore) then
@@ -162,6 +164,9 @@ function Core:RecordCharacter(withProgress)
 	-- at all keeps the last real one, or it would save empty gear over it (found in game, 0.9.1).
 	if not next(snap.gear or {}) and old and type(old.gear) == "table" and next(old.gear) then snap.gear = old.gear end
 	self.db.characters[key] = snap
+	-- the points of this ruleset, for characters of it the roster shows while you play the other one
+	local earned = Live.Earned()
+	if earned > 0 then self.db.pools[snap.ruleset] = earned end
 end
 
 -- 1.0 reminders. Points this character could still spend: the account's points up to the per-character cap,
@@ -171,6 +176,86 @@ function Core:Unspent()
 	if earned <= 0 then return 0 end
 	local _, spent = Live.Trees()
 	return math.max(0, math.min(Data.SPEND_CAP, earned) - (spent or 0))
+end
+
+-- 1.1: the account's points on a ruleset (Normal and Hardcore earn apart): live for the one you play, else the
+-- last reading taken on a character of it.
+function Core:EarnedFor(ruleset)
+	if ruleset == (Live.IsHardcore() and "hardcore" or "normal") then return Live.Earned() end
+	return tonumber(self.db and self.db.pools[ruleset]) or 0
+end
+
+-- Points a saved character could still spend: its ruleset's points up to the cap, minus its ranks.
+function Core:UnspentFor(key)
+	if key == Live.CharacterKey() then return self:Unspent() end
+	local ch = self.db and self.db.characters[key]
+	if type(ch) ~= "table" then return 0 end
+	local earned = self:EarnedFor(ch.ruleset or "normal")
+	if earned <= 0 then return 0 end
+	return math.max(0, math.min(Data.SPEND_CAP, earned) - (tonumber(ch.spent) or 0))
+end
+
+-- 1.1: a new Legacy point. Which characters of this ruleset can spend it (not fallen, not set to Ignore), the one
+-- you're playing first. Nothing when all of them sit at the cap.
+function Core:CanSpend()
+	local me, ruleset, out = Live.CharacterKey(), Live.IsHardcore() and "hardcore" or "normal", {}
+	for key, ch in pairs(self.db.characters) do
+		if type(ch) == "table" and (ch.ruleset or "normal") == ruleset and self.db.status[key] ~= "fallen"
+			and self.db.roles[key] ~= "ignore" and self:UnspentFor(key) > 0 then
+			out[#out + 1] = { key = key, name = ch.name or key, live = key == me }
+		end
+	end
+	table.sort(out, function(a, b)
+		if a.live ~= b.live then return a.live end
+		return a.name < b.name
+	end)
+	return out
+end
+
+function Core:NewPoint(level)
+	if not self:Setting("announceNewPoint") or Live.demo then return end
+	local list = self:CanSpend()
+	if #list == 0 then return end
+	local names = {}
+	for i, c in ipairs(list) do names[i] = c.name end
+	if #list == 1 then
+		self:Print(string.format(L["New Legacy point (%d in all). %s can spend it."], level, names[1]))
+	else
+		self:Print(string.format(L["New Legacy point (%d in all). %d characters can spend it: %s."], level, #list, table.concat(names, ", ")))
+	end
+end
+
+-- The saved characters as the pages show them. 1.1 debug fill: every snapshot at the fill's share, plus a made-up
+-- character for each class the account hasn't played (two crafts, both rulesets), so every card can be looked at.
+-- Nothing here is saved.
+function Core:Characters()
+	if not Live.demo then return self.db.characters end
+	local out, have = {}, {}
+	for key, ch in pairs(self.db.characters) do
+		out[key] = Live.DemoCharacter(ch)
+		have[ch.class] = true
+	end
+	for i, token in ipairs(Data.CLASS_ORDER) do
+		if not have[token] then
+			local profs, slot = {}, 0
+			for _, craft in ipairs(Data.CRAFT_ORDER) do
+				if Data.SUGGESTED_CRAFTS[token] and Data.SUGGESTED_CRAFTS[token][craft.id] then
+					slot = slot + 1
+					profs[#profs + 1] = { name = L[craft.name], skillLine = craft.id, skill = 1, max = 300, slot = slot, primary = true, craft = true }
+				end
+			end
+			local name = "Demo" .. Live.ClassName(token):gsub("[^%a]", "")
+			local race = "Orc"
+			for _, r in ipairs(Data.RACES.Horde) do
+				if Data.RACE_CLASSES.Horde[r][token] then race = r break end
+			end
+			out[name .. "-Demo"] = Live.DemoCharacter({
+				name = name, realm = "Demo", class = token, race = L[race], ruleset = i % 3 == 0 and "hardcore" or "normal",
+				level = 1, professions = profs, perks = {}, gear = {}, money = 123456, seen = 0, spent = 0, demo = true,
+			})
+		end
+	end
+	return out
 end
 
 -- Rewards the account has unlocked but not collected from Innkeeper Wiley yet.
@@ -256,7 +341,7 @@ local EVENTS = {
 }
 for _, e in ipairs(EVENTS) do Core:RegisterEvent(e) end
 
-Core:SetScript("OnEvent", function(self, event, arg1)
+Core:SetScript("OnEvent", function(self, event, arg1, ...)
 	if RECORD_NOW[event] then recordDue = true end
 	if event == "ADDON_LOADED" then
 		if arg1 == addonName then
@@ -301,6 +386,13 @@ Core:SetScript("OnEvent", function(self, event, arg1)
 				local link = Live.AchievementLink(arg1) or name
 				if link then Live.SendGuild(string.format(L["Legacy challenge earned: %s (+%d Legacy points)"], link, points)) end
 			end
+		end
+		self:RequestRefresh()
+	elseif event == "MAJOR_FACTION_RENOWN_LEVEL_CHANGED" then
+		-- 1.1: majorFactionID, newRenownLevel, oldRenownLevel. Wait for the refresh so the trees and pools are current.
+		local newLevel, oldLevel = ...
+		if arg1 == Data.REWARD_TRACK_FACTION_ID and self.db and tonumber(newLevel) and tonumber(newLevel) > (tonumber(oldLevel) or 0) then
+			C_Timer.After(1, function() Core:NewPoint(tonumber(newLevel)) end)
 		end
 		self:RequestRefresh()
 	elseif event == "PLAYER_DEAD" then
@@ -350,12 +442,13 @@ function Core:Capture()
 	self:Print(L["game state captured. Type /reload to write it to SavedVariables."])
 end
 
-local HELP = L["Commands:"] .. " /yl, /yl overview|challenges|roster|tree, /yl options, /yl status, /yl here, /yl export, /yl capture, /yl shots, /yl reset"
+local HELP = L["Commands:"] .. " /yl, /yl overview|challenges|roster|tree, /yl options, /yl status, /yl here, /yl report [challenge], /yl export, /yl capture, /yl shots, /yl reset"
 
 SLASH_YOURLEGACY1 = "/yourlegacy"
 SLASH_YOURLEGACY2 = "/yl"
 SlashCmdList.YOURLEGACY = function(msg)
-	msg = strtrim(msg or ""):lower()
+	local raw = strtrim(msg or "")
+	msg = raw:lower()
 	if msg == "" then
 		Core:Toggle()
 	elseif msg == "overview" or msg == "challenges" or msg == "roster" or msg == "tree" then
@@ -371,6 +464,8 @@ SlashCmdList.YOURLEGACY = function(msg)
 		Core:Capture()
 	elseif msg == "here" then
 		if ns.Instance then ns.Instance:Report(true) end
+	elseif msg == "report" or msg:match("^report ") then
+		if ns.Report then ns.Report:Show(strtrim(raw:sub(7))) end
 	elseif msg == "shots" then
 		if ns.Shots then ns.Shots:Start() end
 	elseif msg == "reset" then
