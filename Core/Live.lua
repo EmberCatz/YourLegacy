@@ -547,6 +547,41 @@ end
 
 function Live.Money() return try(GetMoney) or 0 end
 
+-- Why a map lists no dungeon entrances (probe, 2026-11-10: none on any map in game). For each map ID: what the raw
+-- call returned (error text, nil, or the count) and the first entry's fields, before Live.DungeonEntrances filters
+-- anything; plus the map setting Blizzard's own entrance pins follow and whether the Encounter Journal is loaded.
+function Live.EntranceDiagnostics(mapIDs)
+	local out = {}
+	local cvar = C_CVar and try(C_CVar.GetCVar, "showDungeonEntrancesOnMap")
+	out[#out + 1] = "showDungeonEntrancesOnMap=" .. tostring(cvar) .. ", Blizzard_EncounterJournal loaded="
+		.. tostring(Live.AddOnLoaded("Blizzard_EncounterJournal"))
+	local fn = C_EncounterJournal and C_EncounterJournal.GetDungeonEntrancesForMap
+	for _, mapID in ipairs(mapIDs) do
+		local name = Live.MapName(mapID) or "?"
+		if type(fn) ~= "function" then out[#out + 1] = "no GetDungeonEntrancesForMap" break end
+		local ok, list = pcall(fn, mapID)
+		local line = string.format("%s (%s): ", name, tostring(mapID))
+		if not ok then
+			line = line .. "error " .. tostring(list)
+		elseif type(list) ~= "table" then
+			line = line .. "returned " .. tostring(list)
+		else
+			line = line .. #list .. " entries"
+			local e = list[1]
+			if type(e) == "table" then
+				local keys = {}
+				for k, v in pairs(e) do keys[#keys + 1] = tostring(k) .. "=" .. (type(v) == "table" and "table" or tostring(v)) end
+				table.sort(keys)
+				line = line .. "; first: " .. table.concat(keys, " ")
+			end
+		end
+		local instance = try(C_EncounterJournal.GetInstanceForGameMap, mapID)
+		if instance then line = line .. "; instance for map " .. tostring(instance) end
+		out[#out + 1] = line
+	end
+	return out
+end
+
 -- 1.1 /yl report: the client and the addon, as the game reports them.
 function Live.ClientInfo()
 	local version, build = try(GetBuildInfo)

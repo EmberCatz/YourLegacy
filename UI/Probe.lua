@@ -30,6 +30,8 @@ Probe.ATLASES = {
 	"common-dropdown-icon-checkmark-yellow", "common-dropdown-textholder", "worldquest-tracker-checkmark",
 	"UI-Legacy-Tree-Professions", "UI-Legacy-Tree-Adventure", "UI-Legacy-Tree-Progression",
 }
+-- Zone maps with dungeon entrances (Classic map IDs): The Barrens, Westfall, Tirisfal Glades, Dun Morogh, Ashenvale.
+Probe.ENTRANCE_MAPS = { 1413, 1436, 1420, 1426, 1440 }
 Probe.TIRISFAL_AREAS = 18 -- Undercity counts (Legacy Forever's issue 332, 2026-11-09)
 
 -- 123456 copper → "12g 34s 56c"
@@ -109,7 +111,8 @@ Check("exploreNames", "Exploration zones are maps", function()
 	for _, m in ipairs(maps) do names[ns.Lower(m.name)] = true end
 	local missing, total = {}, 0
 	for name, node in pairs(Live.ExploreIndex()) do
-		if node.depth <= 3 then
+		-- depth 1 is the whole world ("Explorer" = Explore Azeroth), which no map is named after (probe 2026-11-10)
+		if node.depth >= 2 and node.depth <= 3 then
 			total = total + 1
 			if not names[name] then missing[#missing + 1] = name end
 		end
@@ -144,7 +147,15 @@ Check("dungeons", "Dungeon and raid names", function(run)
 		end
 	end
 	run.journal = journal
-	if #entrances == 0 then return "info", "The game listed no dungeon entrances." end
+	if #entrances == 0 then
+		-- 2026-11-10: none on any map in game. Say why, on maps that have entrances in every version of the game.
+		local ids = { Live.PlayerMap() }
+		for _, id in ipairs(Probe.ENTRANCE_MAPS) do ids[#ids + 1] = id end
+		run.entranceDiagnostics = Live.EntranceDiagnostics(ids)
+		local maps = #Live.AllMaps()
+		return "fail", string.format("No entrances on any of %d maps, so the map banner shows no dungeons. Details: %s",
+			maps, table.concat(run.entranceDiagnostics, " | "))
+	end
 	local matched = {}
 	for _, e in ipairs(entrances) do
 		for _, m in ipairs(Live.InstanceChallenges(e.name, e.kind)) do
@@ -220,6 +231,8 @@ local EVIDENCE = {
 }
 
 local HAND = {
+	"Open Tirisfal Glades' exploration in Blizzard's Legacy panel and count its areas: the probe's number above should match.",
+	"Open the world map on The Barrens: does Blizzard draw the Wailing Caverns entrance icon? Does our banner list it?",
 	"Legacy Tree: a plan that drops a learned rank shows the amber reset line; hover it for the list.",
 	"World map: the banner and our button sit clear of Blizzard's map buttons, with and without Questie or OpenMap.",
 	"World map: drag the banner, close the map, /reload: it stays where you put it.",
@@ -274,7 +287,8 @@ function Probe:Run()
 	end
 	local results, run = Probe.Results()
 	local text, count = Probe.Text(results)
-	ns.Core.db.probe = { date = date("%Y-%m-%d %H:%M"), results = results, journal = run.journal, noLevels = run.noLevels }
+	ns.Core.db.probe = { date = date("%Y-%m-%d %H:%M"), results = results, journal = run.journal, noLevels = run.noLevels,
+		entranceDiagnostics = run.entranceDiagnostics }
 	ns.Core:Print(string.format(L["Probe: %d passed, %d failed, %d waiting for play, %d to check by hand. /reload saves it for a bug report."],
 		count.pass, count.fail, count.wait, count.hand))
 	if ns.Export then
