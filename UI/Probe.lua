@@ -28,7 +28,7 @@ Probe.ATLASES = {
 	"Professions-skillbar-bg", "Professions-skillbar-frame", "Skillbar_Fill_Flipbook_DefaultBlue", "UI-Legacy-Points-icon-c60",
 	"checkbox-minimal", "checkmark-minimal", "common-dropdown-a-button", "common-dropdown-a-button-hover", "common-dropdown-bg",
 	"common-dropdown-icon-checkmark-yellow", "common-dropdown-textholder", "worldquest-tracker-checkmark",
-	"UI-Legacy-Tree-Professions", "UI-Legacy-Tree-Adventure", "UI-Legacy-Tree-Progression",
+	"UI-Legacy-Tree-Professions", "UI-Legacy-Tree-Adventure", "UI-Legacy-Tree-Progression", "Dungeon", "Raid",
 }
 -- Zone maps with dungeon entrances (Classic map IDs): The Barrens, Westfall, Tirisfal Glades, Dun Morogh, Ashenvale.
 Probe.ENTRANCE_MAPS = { 1413, 1436, 1420, 1426, 1440 }

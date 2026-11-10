@@ -105,6 +105,11 @@ function Builders.window(body)
 	size.slider:SetPoint("TOPRIGHT", size, "TOPRIGHT", -70, -18)
 	size.value:SetPoint("LEFT", size.slider.forward, "RIGHT", 10, 0)
 	rows[#rows + 1] = size
+	-- 1.1: the fill of every progress bar, from the profession rank bars this client has (Theme.BAR_FILLS)
+	local fill = Row(body, L["Bar fill"], L["The texture inside the progress bars: the points bar, the Challenges footer and the world map banner. Each one is a profession's rank bar from the game."])
+	fill.fill = Control(fill, T.Dropdown(fill, 150, T.BarFillOptions, function(kit) Set("barFill", kit) end), -17)
+	fill.barFill = true
+	rows[#rows + 1] = fill
 	SwitchRow(body, rows, L["Lock window position"], L["Stop the window from being dragged."], "locked")
 	SwitchRow(body, rows, L["Close in combat"], L["Close the window when combat starts. It doesn't update during combat either way."], "combatHide")
 	SwitchRow(body, rows, L["Animations"], L["Short fades when you open the window, switch tabs or pick an option. Turn it off for a still window."], "animations")
@@ -256,7 +261,10 @@ function Builders.data(body)
 		}
 	end, function(key)
 		if not S("devTools") then return end
-		ns.Live.SetDemo(key == "off" and nil or key == "mixed" and "mixed" or (tonumber(key) or 0) / 100)
+		-- not "key == 'off' and nil or ...": nil is falsy, so that picked 0% for Off (the user's bug, 2026-11-10)
+		local value
+		if key == "mixed" then value = "mixed" elseif key ~= "off" then value = (tonumber(key) or 0) / 100 end
+		ns.Live.SetDemo(value)
 		ns.Core:Print(key == "off" and L["Debug fill is off. Real progress again."] or L["Debug fill is on. Nothing you see now is real progress."])
 		ns.Core:RequestRefresh()
 	end), -17)
@@ -340,6 +348,7 @@ local function RefreshRow(r)
 			and L["Uses LibDBIcon from another addon, so minimap button collectors can gather it. Drag it to move it."]
 			or L["Drag the button around the minimap to move it."])
 	end
+	if r.barFill then r.fill:SetValue(S("barFill")) end
 	if r.devFill then
 		local unlocked = S("devTools") and true or false
 		local d = ns.Live.demo

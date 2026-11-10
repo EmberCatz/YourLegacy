@@ -264,6 +264,7 @@ function UI:ApplySettings()
 	if not self.frame then return end
 	local scale = tonumber(ns.Core:Setting("scale")) or 1
 	self.frame:SetScale(math.max(0.5, math.min(1.5, scale)))
+	T.SetBarFill() -- 1.1: the bars repaint when the fill setting changes
 	self:Refresh()
 end
 

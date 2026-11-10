@@ -48,6 +48,7 @@ local DEFAULTS = {
 		mapButton = true,      -- our button on the world map with the map options (UI/MapButton.lua)
 		-- 1.1
 		announceNewPoint = true, -- on a new Legacy point, say which characters can spend it
+		barFill = "DefaultBlue", -- the fill of the progress bars: a profession rank-bar art (Theme.BAR_FILLS)
 	},
 	-- status: open | progress | done | all; section: the Challenges tab ("" = its overview);
 	-- sort (1.0): game | closest | points | name, for the rows inside a section

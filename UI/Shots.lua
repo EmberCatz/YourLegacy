@@ -182,7 +182,9 @@ local function Shoot(entry, done)
 		end
 	end
 	Live.Screenshot()
-	C_Timer.After(TIMEOUT, function() if events.done then events.done(false) end end)
+	-- only this shot's own wait: a stale timeout used to fail whichever later shot was waiting (found in 1.1, once
+	-- the simulator ran time frame by frame)
+	C_Timer.After(TIMEOUT, function() if run and run.waiting == token and events.done then events.done(false) end end)
 end
 
 events:SetScript("OnEvent", function(self, event)

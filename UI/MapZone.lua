@@ -97,7 +97,7 @@ function Z.Lines(mapID)
 				local text, share = Z.Status(m, label)
 				sum = sum + share
 				if share >= 1 then done = done + 1 end
-				lines[#lines + 1] = { text = text, done = share >= 1 }
+				lines[#lines + 1] = { text = text, done = share >= 1, icon = e.kind == "raid" and "Raid" or "Dungeon" }
 			end
 		end
 	end
@@ -196,6 +196,8 @@ local function Create(parent)
 	box.title:SetWordWrap(false)
 	box.hint:SetFontObject(T.F.mid)
 	box.bar = T.ProgressBar(box, Z.WIDTH - 24)
+	-- 1.1: the percentage counts along while the bar grows
+	box.bar.onPaint = function(r) box.hint:SetText(Z.Percent(r)) end
 	box.bar:SetPoint("TOPLEFT", box, "TOPLEFT", 12, -36)
 	box.rows = {}
 	for i = 1, Z.MAX_ROWS do
@@ -206,6 +208,11 @@ local function Create(parent)
 		r.check:SetSize(12, 12)
 		r.check:SetPoint("LEFT")
 		if not T.Atlas(r.check, "worldquest-tracker-checkmark") then r.check:SetTexture(T.Path("Check")) end
+		-- 1.1: an open dungeon or raid line carries the game's own map icon for it
+		r.kind = r:CreateTexture(nil, "ARTWORK")
+		r.kind:SetSize(14, 14)
+		r.kind:SetPoint("LEFT", -1, 0)
+		r.kind:Hide()
 		r.text = T.Text(r, T.F.small, C.white)
 		r.text:SetPoint("LEFT", 16, 0)
 		r.text:SetPoint("RIGHT")
@@ -304,7 +311,10 @@ function Z:Layout()
 	box.title:SetText(name or "")
 	box.hint:SetText(Z.Percent(ratio))
 	box.hint:SetTextColor(T.unpack(ratio >= 1 and C.goldHi or C.white))
-	box.bar:SetValue(ratio)
+	box.title:SetTextColor(T.unpack(ratio >= 1 and C.goldHi or C.head))
+	-- 1.1 juice: on another map the bar grows from empty (the flipbook playing on the way); on a refresh from where it was
+	if newMap and T.Animated() then box.bar:Paint(0, 0) end
+	box.bar:SetValue(ratio, true)
 	box.goals = { done = done, total = goals }
 	local explore = Live.ExploreProgress(name)
 	box.missing = explore and not explore.nested and explore.missing or {}
@@ -315,13 +325,21 @@ function Z:Layout()
 			r.text:SetText(line.text)
 			r.text:SetTextColor(T.unpack(line.done and C.teal or (line.sub and C.ink2 or C.white)))
 			r.check:SetShown(line.done and not line.sub)
+			local icon = not line.done and line.icon
+			r.kind:SetShown(icon and T.Atlas(r.kind, icon) or false)
 		end
 	end
 	box:SetHeight(Z.TOP + math.min(#lines, Z.MAX_ROWS) * Z.ROW + 10)
 	Place(parent) -- after the height: a dragged spot is kept inside the map
 	local wasShown = box:IsShown()
 	box:Show()
-	if newMap or not wasShown then T.Reveal(box, T.DUR_SHORT, 0.97) end
+	if newMap or not wasShown then
+		T.Reveal(box, T.DUR_SHORT, 0.97)
+		-- the lines come in one after another
+		for i, r in ipairs(box.rows) do
+			if r:IsShown() then T.Reveal(r, T.DUR_SHORT, nil, 0.06 * i) end
+		end
+	end
 end
 
 -- While the map is open: fill again when it shows another map or the challenges changed (a refresh).

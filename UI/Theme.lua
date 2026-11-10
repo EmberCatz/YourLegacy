@@ -592,6 +592,23 @@ function T.Dropdown(parent, width, options, onSelect, rowH)
 		end
 		list.offset = math.max(0, list.offset)
 		list:SetSize(w, math.min(#opts, LIST_ROWS) * rowH + LIST_INSET.top + LIST_INSET.bottom)
+		-- 1.1: a scroll area clips its children, so a list near the bottom of the Options page was cut off. Lift it to
+		-- the top-level frame the dropdown sits in (same scale, no clipping), and open it upward when it wouldn't fit
+		-- below that frame.
+		local top, p = self, self:GetParent()
+		while p and p ~= UIParent do top, p = p, p:GetParent() end
+		if list:GetParent() ~= top then
+			list:SetParent(top)
+			list:SetFrameStrata("DIALOG")
+		end
+		list:SetFrameLevel(top:GetFrameLevel() + 50)
+		list:ClearAllPoints()
+		local below = (self:GetBottom() or 0) - (top:GetBottom() or 0)
+		if below < list:GetHeight() + 8 and (top:GetTop() or 0) - (self:GetTop() or 0) > list:GetHeight() + 8 then
+			list:SetPoint("BOTTOMLEFT", self, "TOPLEFT", 0, 4)
+		else
+			list:SetPoint("TOPLEFT", self, "BOTTOMLEFT", 0, -4)
+		end
 		Lay()
 		list:Show()
 		openDropdown = self
@@ -877,6 +894,40 @@ end
 -- it never stretches. The art keeps its own height; only the width follows the bar. Without the profession art it
 -- falls back to the Legacy panel's own bar (Legacy-Progressbar-*). bar.Text holds the count. SetValue(ratio).
 local FLIPBOOK_COLS, FLIPBOOK_FRAME_H = 2, 34 -- ProfessionsRankBarMixin:Update
+-- 1.1: the fills a bar can wear, the game's profession rank-bar art ("Skillbar_Fill_Flipbook_" .. the Enum.Profession
+-- key, Blizzard_ProfessionsRankBar.lua). Options lists the ones this client has (Options > Window > Bar fill).
+T.BAR_FILLS = {
+	{ "DefaultBlue", "Default blue" }, { "Alchemy", "Alchemy" }, { "Blacksmithing", "Blacksmithing" },
+	{ "Enchanting", "Enchanting" }, { "Engineering", "Engineering" }, { "Leatherworking", "Leatherworking" },
+	{ "Tailoring", "Tailoring" }, { "Herbalism", "Herbalism" }, { "Mining", "Mining" }, { "Skinning", "Skinning" },
+	{ "Cooking", "Cooking" }, { "Fishing", "Fishing" }, { "FirstAid", "First Aid" }, { "Inscription", "Inscription" },
+	{ "Jewelcrafting", "Jewelcrafting" }, { "Archaeology", "Archaeology" },
+}
+function T.FillAtlas(kit) return "Skillbar_Fill_Flipbook_" .. tostring(kit or "DefaultBlue") end
+function T.BarFillOptions()
+	local out = {}
+	for _, f in ipairs(T.BAR_FILLS) do
+		if AtlasRect(T.FillAtlas(f[1])) then out[#out + 1] = { f[1], ns.L[f[2]] } end
+	end
+	return out
+end
+local function CurrentFill()
+	local kit = ns.Core and ns.Core.db and ns.Core.db.settings.barFill
+	return (kit and AtlasRect(T.FillAtlas(kit))) and kit or "DefaultBlue"
+end
+-- The outline's and background's ends keep their own pixels however wide the bar is (SetTextureSliceMargins,
+-- SimpleTextureBaseAPI): stretching the 451px art to 950px doubled its caps, looked blocky and let a full fill poke
+-- past them (the user's 1.1 feedback).
+local BAR_SLICE = { 14, 6, 14, 6 }
+local function Slice(tex)
+	if tex.SetTextureSliceMargins then tex:SetTextureSliceMargins(BAR_SLICE[1], BAR_SLICE[2], BAR_SLICE[3], BAR_SLICE[4]) end
+end
+local bars = setmetatable({}, { __mode = "k" }) -- every profession-style bar, to repaint when the fill setting changes
+function T.SetBarFill()
+	for bar in pairs(bars) do bar:SetFill(CurrentFill()) end
+end
+local GROW_TIME = 0.6
+
 function T.ProgressBar(parent, width)
 	local bar = CreateFrame("Frame", nil, parent)
 	bar:SetSize(width, 24)
@@ -891,20 +942,15 @@ function T.ProgressBar(parent, width)
 		T.Atlas(bar.bg, "Professions-skillbar-bg")
 		bar.bg:SetPoint("TOPLEFT")
 		bar.bg:SetSize(width, bgInfo.height or 26)
+		Slice(bar.bg)
 		T.Atlas(bar.frame, "Professions-skillbar-frame")
 		bar.frame:SetPoint("TOPLEFT")
 		bar.frame:SetSize(width - 2, frameInfo.height or 29)
+		Slice(bar.frame)
 		bar.fill:SetPoint("TOPLEFT", 5, -3)
 		bar.fill:SetHeight(18)
 		bar.fullW = width - 12
-		local info = AtlasRect("Skillbar_Fill_Flipbook_DefaultBlue")
-		if info and T.Atlas(bar.fill, "Skillbar_Fill_Flipbook_DefaultBlue") then
-			local w = (info.rightTexCoord - info.leftTexCoord) / FLIPBOOK_COLS
-			local rows = math.max(1, math.floor(info.height / FLIPBOOK_FRAME_H + 0.5))
-			bar.tc = { info.leftTexCoord, w, info.topTexCoord, info.topTexCoord + (info.bottomTexCoord - info.topTexCoord) / rows }
-		elseif not T.Atlas(bar.fill, "Legacy-Progressbar-Fill") then
-			bar.fill:SetColorTexture(unpackC(C.heat4))
-		end
+		bars[bar] = true
 		bar.textY = -12
 	else
 		-- LegacyChallengePointSummaryTemplate: a 16px Legacy-Progressbar-BG, the fill over its top 13px, the frame
@@ -925,18 +971,63 @@ function T.ProgressBar(parent, width)
 	end
 	bar.Text = T.Text(bar, T.F.num, C.ink, "CENTER")
 	bar.Text:SetPoint("CENTER", bar, "TOP", 0, bar.textY)
-	function bar:SetValue(ratio)
-		ratio = math.max(0, math.min(1, ratio or 0))
-		self.ratio = ratio
+
+	-- one frame of the fill's flipbook (2 columns, 34px rows); row picks the frame, for the shimmer while it grows
+	function bar:SetFill(kit)
+		if self.kind ~= "profession" then return end
+		local atlas = T.FillAtlas(kit)
+		local info = AtlasRect(atlas)
+		if info and T.Atlas(self.fill, atlas) then
+			self.fillKit = kit
+			local w = (info.rightTexCoord - info.leftTexCoord) / FLIPBOOK_COLS
+			local rows = math.max(1, math.floor(info.height / FLIPBOOK_FRAME_H + 0.5))
+			local h = (info.bottomTexCoord - info.topTexCoord) / rows
+			self.tc = { info.leftTexCoord, w, info.topTexCoord, h, rows }
+		elseif not T.Atlas(self.fill, "Legacy-Progressbar-Fill") then
+			self.tc = nil
+			self.fill:SetColorTexture(unpackC(C.heat4))
+		end
+		self:Paint(self.shownRatio or self.ratio or 0, 0)
+	end
+	-- draw a ratio, on flipbook frame `frame` (0-based, both columns count)
+	function bar:Paint(ratio, frame)
+		self.shownRatio = ratio
 		self.fill:SetWidth(math.max(1, self.fullW * ratio))
 		if self.tc then
-			local l, w, t, b = unpack(self.tc)
-			self.fill:SetTexCoord(l, l + w * math.max(0.001, ratio), t, b)
+			local l, w, t, h, rows = unpack(self.tc)
+			frame = (frame or 0) % (rows * FLIPBOOK_COLS)
+			local col, row = frame % FLIPBOOK_COLS, math.floor(frame / FLIPBOOK_COLS)
+			local left = l + col * w
+			self.fill:SetTexCoord(left, left + w * math.max(0.001, ratio), t + row * h, t + (row + 1) * h)
 		end
 		self.fill:SetShown(ratio > 0)
+		if self.onPaint then self.onPaint(ratio) end
+	end
+	-- animate (1.1, the map banner): grow from what's shown to the new ratio, the flipbook playing once on the way
+	function bar:SetValue(ratio, animate)
+		ratio = math.max(0, math.min(1, ratio or 0))
+		self.ratio = ratio
+		local from = self.shownRatio or 0
+		if not (animate and T.Animated()) or math.abs(from - ratio) < 0.001 then
+			self:SetScript("OnUpdate", nil)
+			self:Paint(ratio, 0)
+			return
+		end
+		local t0, frames = GetTime(), self.tc and self.tc[5] * FLIPBOOK_COLS or 1
+		self:SetScript("OnUpdate", function(f)
+			local p = math.min(1, (GetTime() - t0) / GROW_TIME)
+			local eased = 1 - (1 - p) * (1 - p) * (1 - p)
+			if p >= 1 then
+				f:SetScript("OnUpdate", nil)
+				f:Paint(ratio, 0) -- exactly the value (from + (ratio - from) can round below it)
+			else
+				f:Paint(from + (ratio - from) * eased, math.floor(p * frames))
+			end
+		end)
 	end
 	-- the x of a ratio along the fill, for marks placed on the bar (the reward track)
 	function bar:At(ratio) return (self.kind == "profession" and 5 or 0) + self.fullW * ratio end
+	if bar.kind == "profession" then bar:SetFill(CurrentFill()) end
 	bar:SetValue(0)
 	return bar
 end
