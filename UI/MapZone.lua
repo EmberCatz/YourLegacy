@@ -95,16 +95,17 @@ function Z.Lines(mapID)
 				goals = goals + 1
 				local missing, left, total = ns.Instance.Missing(m)
 				local text, share
+				local label = ns.Data.WithLevels(e.name, e.journalID) -- 1.1: "Wailing Caverns (17-24)"
 				if m.item.completed or (not m.whole and #missing == 0) or (m.whole and left == 0) then
-					text, share = string.format(L["%s: done"], e.name), 1
+					text, share = string.format(L["%s: done"], label), 1
 				elseif m.whole and total > 1 then
-					text, share = string.format(L["%s: %d of %d bosses left"], e.name, left, total), (total - left) / total
+					text, share = string.format(L["%s: %d of %d bosses left"], label, left, total), (total - left) / total
 				elseif m.whole then
-					text, share = string.format(L["%s: not done yet"], e.name), 0
+					text, share = string.format(L["%s: not done yet"], label), 0
 				elseif #m.parts > 1 then
-					text, share = string.format(L["%s: %d wings left"], e.name, #missing), (#m.parts - #missing) / #m.parts
+					text, share = string.format(L["%s: %d wings left"], label, #missing), (#m.parts - #missing) / #m.parts
 				else
-					text, share = string.format(L["%s: needs a clear"], e.name), 0
+					text, share = string.format(L["%s: needs a clear"], label), 0
 				end
 				sum = sum + share
 				if share >= 1 then done = done + 1 end

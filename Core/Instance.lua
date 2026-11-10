@@ -71,15 +71,16 @@ end
 -- Chat lines for one challenge this instance counts toward. Nothing for a finished one unless asked (/yl here).
 local function Lines(place, m, forced)
 	local out, item = {}, m.item
+	local where = Data.WithLevels(place.name) -- 1.1: "Wailing Caverns (17-24)"
 	if item.completed then
-		if forced then out[1] = string.format(L["%s counts toward %s, which you've already earned."], place.name, Title(item)) end
+		if forced then out[1] = string.format(L["%s counts toward %s, which you've already earned."], where, Title(item)) end
 		return out
 	end
 	local total, left = #m.criteria, Left(m.criteria)
 	if m.whole and total == 0 then
-		out[1] = string.format(L["%s counts toward %s."], place.name, Title(item))
+		out[1] = string.format(L["%s counts toward %s."], where, Title(item))
 	elseif m.whole then
-		out[1] = string.format(L["%s counts toward %s: %d of %d bosses left."], place.name, Title(item), left, total)
+		out[1] = string.format(L["%s counts toward %s: %d of %d bosses left."], where, Title(item), left, total)
 		local missing = {}
 		for _, c in ipairs(m.parts) do if not c.done then missing[#missing + 1] = c.text end end
 		if #missing > 0 then out[2] = string.format(L["Bosses still to kill: %s"], NameList(missing)) end
@@ -87,9 +88,9 @@ local function Lines(place, m, forced)
 		local missing = {}
 		for _, c in ipairs(m.parts) do if not c.done then missing[#missing + 1] = c end end
 		if #missing == 0 then
-			out[1] = string.format(L["%s already counts toward %s. %d of %d dungeons left elsewhere."], place.name, Title(item), left, total)
+			out[1] = string.format(L["%s already counts toward %s. %d of %d dungeons left elsewhere."], where, Title(item), left, total)
 		else
-			out[1] = string.format(L["%s counts toward %s and still needs a clear. %d of %d dungeons left."], place.name, Title(item), left, total)
+			out[1] = string.format(L["%s counts toward %s and still needs a clear. %d of %d dungeons left."], where, Title(item), left, total)
 			if #m.parts > 1 then
 				local names = {}
 				for i, c in ipairs(missing) do names[i] = c.text end
@@ -117,6 +118,13 @@ function I:Update()
 	if here and here.place.name == place.name then return end -- a /reload or a ghost run back in: keep the reading
 	local matches = Live.InstanceChallenges(place.name, place.kind)
 	here = { place = place, matches = matches, done = Snapshot(matches) }
+	-- 1.1 probe evidence: did the game's instance name find its challenge? (a known dungeon that matched nothing is a
+	-- name mismatch, like a wing named differently in GetInstanceInfo than in the challenge's parts)
+	if Data.LevelRange(place.name) or #matches > 0 then
+		local seen = Core.db.evidence.instances or { names = {} }
+		seen.names[place.name] = #matches > 0 and "matched" or "no challenge"
+		Core:Evidence("instances", seen)
+	end
 end
 
 -- The instance lines. forced (/yl here) also speaks outside instances, in ones that don't count, and again.
@@ -165,6 +173,9 @@ function I:EncounterEnd(encounterID, success, units)
 			end
 		end
 	end
+	-- 1.1 probe evidence: ENCOUNTER_END carries the bosses' creature IDs (or not)
+	local withIDs = next(killed) ~= nil
+	Core:Evidence(withIDs and "encounterUnits" or "encounterNoUnits", { encounterID = encounterID, place = here.place.name })
 	if success ~= 1 then return end
 	local at = here
 	C_Timer.After(I.KILL_DELAY, function() if here == at then I:AfterKill(encounterID, killed) end end)
@@ -187,6 +198,10 @@ function I:AfterKill(encounterID, killed)
 				if inHere[c.key] and not before[c.key] then
 					local byThisFight = (c.type == Data.CRITERIA_KILL and killed[c.assetID])
 						or (c.type == Data.CRITERIA_ENCOUNTER and c.assetID == encounterID)
+					if c.done and c.type == Data.CRITERIA_ENCOUNTER then
+						-- 1.1 probe evidence: does a boss-fight part's asset equal ENCOUNTER_END's encounterID?
+						Core:Evidence("encounterAsset", { match = c.assetID == encounterID, asset = c.assetID, encounterID = encounterID })
+					end
 					if c.done then
 						if m.whole then
 							Core:Print(string.format(L["%s is done for %s: %d of %d bosses left."], c.text, Title(m.item), left, total))

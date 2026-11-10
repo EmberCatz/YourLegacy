@@ -486,12 +486,66 @@ function Live.DungeonEntrances(mapID)
 	for _, e in ipairs(try(C_EncounterJournal.GetDungeonEntrancesForMap, mapID) or {}) do
 		local pos = e.position
 		if type(e.name) == "string" and e.name ~= "" and pos and pos.x and pos.y then
-			out[#out + 1] = { name = e.name, x = pos.x, y = pos.y,
+			out[#out + 1] = { name = e.name, x = pos.x, y = pos.y, journalID = e.journalInstanceID,
 				kind = tostring(e.atlasName or ""):find("Raid") and "raid" or "party" }
 		end
 	end
 	return out
 end
+
+---------------------------------------------------------------- 1.1 probe (/yl probe, UI/Probe.lua): game reads for the self-checks
+-- A global by dotted path ("C_Traits.ResetTree"), or nil.
+function Live.Global(path)
+	local v = _G
+	for part in tostring(path):gmatch("[^%.]+") do
+		if type(v) ~= "table" then return nil end
+		v = v[part]
+	end
+	return v
+end
+
+-- The client's account-flag value (nil when it has none), for the probe.
+function Live.AccountFlag() return ACHIEVEMENT_FLAGS_ACCOUNT end
+
+function Live.AtlasExists(atlas)
+	return C_Texture and try(C_Texture.GetAtlasInfo, atlas) and true or false
+end
+
+-- Every map under Azeroth (zones, continents, dungeon maps): { id, name, mapType }. GetMapChildrenInfo with
+-- allDescendants (MapDocumentation). Falls back to the world map's fallback ID when 947 isn't there.
+function Live.AllMaps()
+	if not C_Map then return {} end
+	local root = 947
+	if not try(C_Map.GetMapInfo, root) then root = try(C_Map.GetFallbackWorldMapID) or root end
+	local out = {}
+	for _, m in ipairs(try(C_Map.GetMapChildrenInfo, root, nil, true) or {}) do
+		if m.mapID and m.name then out[#out + 1] = { id = m.mapID, name = m.name, mapType = m.mapType } end
+	end
+	return out
+end
+
+-- The game's own count of Legacy points left to spend: each tree's currency info for currency 4225
+-- (TraitTreeCurrencyInfo.quantity). Returns the count when every tree reports the same pool, else nil plus the
+-- per-tree numbers (then the probe shows them: how the pool works isn't confirmed).
+function Live.UnspentFromGame()
+	if not C_Traits then return nil end
+	local per, value, same = {}, nil, true
+	for _, tree in ipairs(Data.TREES) do
+		local configID = try(C_Traits.GetConfigIDByTreeID, tree.id)
+		local list = configID and try(C_Traits.GetTreeCurrencyInfo, configID, tree.id, false)
+		for _, c in ipairs(type(list) == "table" and list or {}) do
+			if c.traitCurrencyID == Data.POINTS_CURRENCY_ID then
+				per[#per + 1] = tree.key .. " " .. tostring(c.quantity)
+				if value == nil then value = c.quantity elseif value ~= c.quantity then same = false end
+			end
+		end
+	end
+	if #per == 0 then return nil end
+	if same then return value end
+	return nil, table.concat(per, ", ")
+end
+
+function Live.Money() return try(GetMoney) or 0 end
 
 -- 1.1 /yl report: the client and the addon, as the game reports them.
 function Live.ClientInfo()

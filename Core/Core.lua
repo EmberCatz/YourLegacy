@@ -6,7 +6,7 @@ local Core = CreateFrame("Frame")
 ns.Core = Core
 YourLegacy = ns -- one global for /dump and other addons; everything else stays local
 
-local DB_VERSION = 12
+local DB_VERSION = 13
 Core.DB_VERSION = DB_VERSION -- read by tests
 local DEFAULTS = {
 	characters = {}, -- [Name-Realm] = Live.Snapshot()
@@ -20,6 +20,8 @@ local DEFAULTS = {
 	builds = {},     -- 0.9: saved Legacy tree builds, account-wide: { { name = "...", perks = { [nodeID] = rank } } }
 	roles = {},      -- 1.0: [Name-Realm] = "main" | "crafter" | "bank" | "ignore" (nil = alt; Data.ROLES)
 	bossNames = {},  -- 1.0: [creatureID] = name, learned from ENCOUNTER_END for creatures a dungeon's credit needs
+	evidence = {},   -- 1.1: what the probe (/yl probe) learned while you played: [key] = { date, ... } (UI/Probe.lua)
+	probe = {},      -- 1.1: the last probe run, for reading from SavedVariables after /reload (devenv/probe.py)
 	settings = {
 		scale = 1,           -- window scale
 		minimap = true,      -- show the minimap button
@@ -130,6 +132,7 @@ local function Migrate(db)
 			end
 		end
 	end
+	-- v13 (1.1): evidence and probe are new tables (ApplyDefaults adds them); nothing older to convert.
 	db.version = DB_VERSION
 	return db
 end
@@ -139,6 +142,14 @@ function Core:Print(msg)
 end
 
 function Core:Setting(key) return self.db and self.db.settings[key] end
+
+-- 1.1: a piece of evidence for the probe, with the day it was seen. Never while the debug fill fakes progress.
+function Core:Evidence(key, fields)
+	if not self.db or Live.demo then return end
+	fields = fields or {}
+	fields.date = date("%Y-%m-%d %H:%M")
+	self.db.evidence[key] = fields
+end
 
 function Core:SetSetting(key, value)
 	if not self.db then return end
@@ -163,6 +174,20 @@ function Core:RecordCharacter(withProgress)
 	-- On logout and /reload (and early at login) the client has no inventory links any more: a read with no item
 	-- at all keeps the last real one, or it would save empty gear over it (found in game, 0.9.1).
 	if not next(snap.gear or {}) and old and type(old.gear) == "table" and next(old.gear) then snap.gear = old.gear end
+	-- 1.1 probe evidence: ranks went down and gold with them since the last snapshot a few minutes ago = a reset
+	-- in the Legacy panel. Records what it cost and how many trees lost ranks (the 10g rule: per tree or per reset?).
+	if old and (tonumber(old.spent) or 0) > (snap.spent or 0) and (tonumber(old.money) or 0) > (snap.money or 0)
+		and (snap.seen or 0) - (tonumber(old.seen) or 0) < 600 then
+		local treeOf, lost = {}, {}
+		for _, t in ipairs(Live.Trees()) do for _, n in ipairs(t.nodes) do treeOf[n.id] = t.key end end
+		for id, r in pairs(old.perks or {}) do
+			id = tonumber(id) or id
+			if (snap.perks[id] or 0) < r and treeOf[id] then lost[treeOf[id]] = true end
+		end
+		local trees = 0
+		for _ in pairs(lost) do trees = trees + 1 end
+		self:Evidence("reset", { cost = old.money - snap.money, ranks = old.spent - snap.spent, trees = trees })
+	end
 	self.db.characters[key] = snap
 	-- the points of this ruleset, for characters of it the roster shows while you play the other one
 	local earned = Live.Earned()
@@ -391,6 +416,7 @@ Core:SetScript("OnEvent", function(self, event, arg1, ...)
 	elseif event == "MAJOR_FACTION_RENOWN_LEVEL_CHANGED" then
 		-- 1.1: majorFactionID, newRenownLevel, oldRenownLevel. Wait for the refresh so the trees and pools are current.
 		local newLevel, oldLevel = ...
+		if arg1 == Data.REWARD_TRACK_FACTION_ID then self:Evidence("renown", { new = tonumber(newLevel), old = tonumber(oldLevel) }) end
 		if arg1 == Data.REWARD_TRACK_FACTION_ID and self.db and tonumber(newLevel) and tonumber(newLevel) > (tonumber(oldLevel) or 0) then
 			C_Timer.After(1, function() Core:NewPoint(tonumber(newLevel)) end)
 		end
@@ -442,7 +468,7 @@ function Core:Capture()
 	self:Print(L["game state captured. Type /reload to write it to SavedVariables."])
 end
 
-local HELP = L["Commands:"] .. " /yl, /yl overview|challenges|roster|tree, /yl options, /yl status, /yl here, /yl report [challenge], /yl export, /yl capture, /yl shots, /yl reset"
+local HELP = L["Commands:"] .. " /yl, /yl overview|challenges|roster|tree, /yl options, /yl status, /yl here, /yl report [challenge], /yl probe, /yl export, /yl capture, /yl shots, /yl reset"
 
 SLASH_YOURLEGACY1 = "/yourlegacy"
 SLASH_YOURLEGACY2 = "/yl"
@@ -464,6 +490,8 @@ SlashCmdList.YOURLEGACY = function(msg)
 		Core:Capture()
 	elseif msg == "here" then
 		if ns.Instance then ns.Instance:Report(true) end
+	elseif msg == "probe" then
+		if ns.Probe then ns.Probe:Run() end
 	elseif msg == "report" or msg:match("^report ") then
 		if ns.Report then ns.Report:Show(strtrim(raw:sub(7))) end
 	elseif msg == "shots" then

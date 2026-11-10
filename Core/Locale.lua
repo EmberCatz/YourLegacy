@@ -444,6 +444,12 @@ ns.LOCALES.deDE = {
 	["Drag to move it."] = "Zum Verschieben ziehen.",
 	["Open Your Legacy"] = "Your Legacy öffnen",
 	-- 1.1
+	["Checks what Your Legacy relies on in this client and lists what still needs a look in game. Type /reload afterwards to save the results."] = "Prüft, worauf sich Your Legacy in diesem Client verlässt, und listet, was noch im Spiel angesehen werden muss. Gib danach /reload ein, um die Ergebnisse zu speichern.",
+	["Probe"] = "Prüfung",
+	["Probe: %d passed, %d failed, %d waiting for play, %d to check by hand. /reload saves it for a bug report."] = "Prüfung: %d bestanden, %d fehlgeschlagen, %d warten aufs Spielen, %d von Hand zu prüfen. /reload speichert sie für eine Fehlermeldung.",
+	["Run the probe"] = "Prüfung starten",
+	["The text is selected. Press Ctrl+C to copy it. Type /reload to save the run with your other Your Legacy data."] = "Der Text ist markiert. Drücke Strg+C, um ihn zu kopieren. Gib /reload ein, um die Prüfung mit deinen übrigen Daten von Your Legacy zu speichern.",
+	["Turn the debug fill off first: the probe checks real progress."] = "Schalte zuerst die Testfüllung aus: Die Prüfung prüft echten Fortschritt.",
 	["%d to spend"] = "%d zu vergeben",
 	["%s: %s of its Legacy work done, %d of %d goals left."] = "%s: %s der Vermächtnis-Ziele erledigt, %d von %d Zielen offen.",
 	["%s: all of its Legacy work is done."] = "%s: Alle Vermächtnis-Ziele hier sind erledigt.",

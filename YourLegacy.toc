@@ -31,3 +31,4 @@ UI\Minimap.lua
 UI\MapButton.lua
 UI\MapZone.lua
 UI\Report.lua
+UI\Probe.lua

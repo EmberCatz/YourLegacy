@@ -228,6 +228,10 @@ function Builders.data(body)
 	r.button = Control(r, T.ActionButton(r, L["Report"]))
 	r.button:SetScript("OnClick", function() if ns.Report then ns.Report:Show("") end end)
 	rows[#rows + 1] = r
+	r = Row(body, L["Run the probe"], L["Checks what Your Legacy relies on in this client and lists what still needs a look in game. Type /reload afterwards to save the results."])
+	r.button = Control(r, T.ActionButton(r, L["Probe"]))
+	r.button:SetScript("OnClick", function() if ns.Probe then ns.Probe:Run() end end)
+	rows[#rows + 1] = r
 	r = Row(body, L["Capture game state"], L["Records what the game reports to Your Legacy, for bug reports. Type /reload afterwards to save it."])
 	r.button = Control(r, T.ActionButton(r, L["Capture"]))
 	r.button:SetScript("OnClick", function() ns.Core:Capture() end)

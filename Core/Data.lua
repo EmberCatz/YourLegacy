@@ -206,3 +206,60 @@ Data.OUTLEVEL_MARGIN = 3
 -- Battalion, type 165, asset 3339). UNVERIFIED: that 165's asset is the encounterID ENCOUNTER_END reports.
 Data.CRITERIA_KILL = 0
 Data.CRITERIA_ENCOUNTER = 165
+
+-- 1.1: level range of every dungeon and raid, from guide sites (the game has no lookup by name: C_LFGInfo needs LFG
+-- dungeon IDs). Sources, checked 2026-11-10: mobalytics.gg/wow-forever/guides/dungeon-raid-map and
+-- mmonster.co/wow-forever/guides/legacy-challenges/dungeons (updated 2026-11-07); they agree on every dungeon. The 9
+-- new Forever dungeons also match Wowhead's overview; for some Classic ones Wowhead differs (Wailing Caverns 15-25).
+-- Keys are English names, normalized by Data.LevelKey, so only English clients match by name for now. The probe
+-- (/yl probe) records each entrance's journalInstanceID; once captured, DUNGEON_LEVEL_IDS makes it work in every
+-- language.
+Data.DUNGEON_LEVELS = {
+	["ragefire chasm"] = { 13, 18 }, ["hall of thanes"] = { 13, 18 }, ["ruins of lordaeron"] = { 15, 20 },
+	["wailing caverns"] = { 17, 24 }, ["deadmines"] = { 17, 26 }, ["shadowfang keep"] = { 22, 30 },
+	["excavation site wetlands"] = { 24, 29 }, ["excavation site"] = { 24, 29 },
+	["stockade"] = { 24, 32 }, ["stormwind stockade"] = { 24, 32 }, ["blackfathom deeps"] = { 24, 32 },
+	["city of dalaran"] = { 28, 33 }, ["gnomeregan"] = { 29, 38 }, ["razorfen kraul"] = { 29, 38 },
+	["scarlet monastery graveyard"] = { 30, 38 }, ["scarlet monastery library"] = { 33, 41 },
+	["scarlet monastery armory"] = { 36, 44 }, ["scarlet monastery cathedral"] = { 38, 46 }, ["scarlet monastery"] = { 30, 46 },
+	["drowned city"] = { 35, 40 }, ["razorfen downs"] = { 37, 46 }, ["kroldok stronghold"] = { 40, 45 }, ["kroldok"] = { 40, 45 },
+	["uldaman"] = { 41, 51 }, ["zulfarrak"] = { 44, 54 }, ["maraudon"] = { 46, 55 }, ["alcaz prison"] = { 48, 53 },
+	["temple of atalhakkar"] = { 50, 60 }, ["sunken temple"] = { 50, 60 }, ["blackrock depths"] = { 52, 60 },
+	["dire maul east"] = { 54, 60 }, ["dire maul north"] = { 56, 60 }, ["dire maul west"] = { 56, 60 }, ["dire maul"] = { 54, 60 },
+	["lower blackrock spire"] = { 55, 60 }, ["upper blackrock spire"] = { 59, 60 }, ["blackrock spire"] = { 55, 60 },
+	["blackmaw hold"] = { 55, 60 }, ["scholomance"] = { 58, 60 }, ["shapers terrace"] = { 58, 60 },
+	["stratholme"] = { 58, 60 }, ["stratholme live"] = { 58, 60 }, ["stratholme dead"] = { 58, 60 },
+	["stratholme main gate"] = { 58, 60 }, ["stratholme service gate"] = { 58, 60 },
+	-- raids
+	["molten core"] = { 60, 60 }, ["onyxias lair"] = { 60, 60 }, ["blackwing lair"] = { 60, 60 }, ["zulgurub"] = { 60, 60 },
+	["ruins of ahnqiraj"] = { 60, 60 }, ["temple of ahnqiraj"] = { 60, 60 }, ["naxxramas"] = { 60, 60 },
+	["hyjal summit"] = { 60, 60 }, ["barrow deeps"] = { 60, 60 },
+}
+-- [journalInstanceID] = { min, max }, from probe captures (empty until one is in).
+Data.DUNGEON_LEVEL_IDS = {}
+
+-- "The Shaper's Terrace" → "shapers terrace", "Stratholme: Live" → "stratholme live".
+function Data.LevelKey(name)
+	local s = ns.Lower(tostring(name or ""))
+	s = s:gsub("\226\128\153", ""):gsub("'", ""):gsub("[:%-,]", " "):gsub("%s+", " ")
+	s = strtrim and strtrim(s) or s:match("^%s*(.-)%s*$")
+	return (s:gsub("^the ", ""))
+end
+
+-- { min, max } for a dungeon or raid, by journal ID when known, else by name ("A or B": the first that's known).
+function Data.LevelRange(name, journalID)
+	if journalID and Data.DUNGEON_LEVEL_IDS[journalID] then return Data.DUNGEON_LEVEL_IDS[journalID] end
+	local r = Data.DUNGEON_LEVELS[Data.LevelKey(name)]
+	if r then return r end
+	for part in (tostring(name or "") .. " or "):gmatch("(.-) or ") do
+		r = Data.DUNGEON_LEVELS[Data.LevelKey(part)]
+		if r then return r end
+	end
+end
+
+-- "Wailing Caverns (17-24)", "Onyxia's Lair (60)", or the name unchanged when its range isn't known.
+function Data.WithLevels(name, journalID)
+	local r = Data.LevelRange(name, journalID)
+	if not r then return name end
+	return r[1] == r[2] and string.format("%s (%d)", name, r[1]) or string.format("%s (%d-%d)", name, r[1], r[2])
+end
