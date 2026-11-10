@@ -188,6 +188,37 @@ Check("dungeons", "Dungeon and raid names", function(run)
 	return "pass", text .. " Every dungeon part matches an entrance."
 end)
 
+-- 1.1: where the metal frame pieces really sit (the user: the side panel's left side looks too wide). For the main
+-- window and, when open, the character panel: each nine-slice piece's atlas, width, and its left / right edge
+-- against the frame's own rect (negative = outside on the left, positive = outside on the right).
+local PIECES = { "TopLeftCorner", "LeftEdge", "BottomLeftCorner", "TopRightCorner", "RightEdge", "BottomRightCorner" }
+local function Pieces(frame, border)
+	local fl, fr = frame:GetLeft(), frame:GetRight()
+	if not (fl and fr and border) then return "not laid out" end
+	local bits = {}
+	for _, key in ipairs(PIECES) do
+		local p = border[key]
+		if p and p.GetLeft and p:GetLeft() then
+			bits[#bits + 1] = string.format("%s %s w%.0f L%+.0f R%+.0f", key, tostring(p.GetAtlas and p:GetAtlas() or "?"),
+				p:GetWidth(), p:GetLeft() - fl, p:GetRight() - fr)
+		end
+	end
+	return #bits > 0 and table.concat(bits, "; ") or "no pieces"
+end
+Check("frames", "Window and panel metal", function(run)
+	local ui, ch = ns.UI and ns.UI.frame, ns.Character and ns.Character.frame
+	local out = {}
+	if ui and ui:IsShown() then out[#out + 1] = "Window: " .. Pieces(ui, ns.UI.border) end
+	if ch and ch:IsShown() then
+		out[#out + 1] = "Panel: " .. Pieces(ch, ch.border)
+		local g = ch.ground
+		if g and g:GetLeft() then out[#out + 1] = string.format("Panel ground L%+.0f", g:GetLeft() - ch:GetLeft()) end
+	end
+	run.frames = out
+	if #out == 0 then return "hand", "Open a character's panel on the Roster, then run the probe again." end
+	return "info", table.concat(out, " | ")
+end)
+
 Check("rewards", "Rewards collected", function()
 	local bits = {}
 	for _, r in ipairs(Live.Rewards()) do
@@ -302,7 +333,7 @@ function Probe:Run()
 	local results, run = Probe.Results()
 	local text, count = Probe.Text(results)
 	ns.Core.db.probe = { date = date("%Y-%m-%d %H:%M"), results = results, journal = run.journal, noLevels = run.noLevels,
-		entranceDiagnostics = run.entranceDiagnostics }
+		entranceDiagnostics = run.entranceDiagnostics, frames = run.frames }
 	ns.Core:Print(string.format(L["Probe: %d passed, %d failed, %d waiting for play, %d to check by hand. /reload saves it for a bug report."],
 		count.pass, count.fail, count.wait, count.hand))
 	if ns.Export then

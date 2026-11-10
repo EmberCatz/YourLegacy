@@ -67,6 +67,7 @@ local function Drawer()
 	f:SetFrameLevel(main:GetFrameLevel() + 30) -- before its children: a child's level is fixed when it's made
 	T.Fill(f, "BACKGROUND", C.paper, nil, -8) -- opaque
 	local ground = f:CreateTexture(nil, "BACKGROUND", nil, -7)
+	f.ground = ground -- (the probe measures it)
 	ground:SetPoint("TOPLEFT", 2, -GROUND_TOP)
 	ground:SetPoint("BOTTOMRIGHT", -2, 2)
 	if not T.AtlasCrop(ground, "Legacy-Challenge-BG", W - 4, main:GetHeight() - GROUND_TOP - 2, "TOP") then ground:Hide() end
