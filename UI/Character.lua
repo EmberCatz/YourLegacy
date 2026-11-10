@@ -57,29 +57,42 @@ ns.ProfRank = ProfRank
 -- Forever): 4px on the right of both, 8px on the left of ButtonFrameTemplateNoPortrait, 13px on the left of
 -- PortraitFrameTemplate. 1.1 had 2px, so the metal overlapped (the user: too close, art spilling over).
 -- These leave 2px between the metal edges.
--- The panel's metal frame: Blizzard's ButtonFrameTemplateNoPortrait (NineSliceLayouts.lua). Empty = Blizzard's layout
--- as is. To move a piece, give its new offset in pixels from the panel's corner, e.g.
---   { TopLeftCorner = { x = -6 }, BottomLeftCorner = { x = -6 } }
--- Blizzard's values: TopLeftCorner x -8 y 16, BottomLeftCorner x -8 y -3, TopRightCorner x 4 y 16,
--- BottomRightCorner x 4 y -3 (negative x = further left). The edges run between the corners and follow them.
--- Every piece is a 95px texture (probe, 2026-11-10). /reload after a change.
-Character.METAL = {}
+-- The panel's metal frame: Blizzard's ButtonFrameTemplateNoPortrait (NineSliceLayouts.lua). Blizzard's corner
+-- offsets: left x -8, right x 4 (negative = further left); the edges run between the corners. Every piece is a 95px
+-- texture (probe, 2026-11-10). 1.1: the left / right x and the leather's inset come from the settings
+-- panelMetalLeft / panelMetalRight / panelGround, set with the developer sliders in Options > Data; at Blizzard's
+-- values the layout is Blizzard's own.
+local function Metal()
+	local s = ns.Core.db and ns.Core.db.settings or {}
+	return tonumber(s.panelMetalLeft) or -8, tonumber(s.panelMetalRight) or 4, tonumber(s.panelGround) or 2
+end
+function Character.MetalEdits()
+	local left, right = Metal()
+	if left == -8 and right == 4 then return nil end
+	return { TopLeftCorner = { x = left }, BottomLeftCorner = { x = left }, TopRightCorner = { x = right }, BottomRightCorner = { x = right } }
+end
 
-Character.SIDE_GAP = 4 + 8 + 2         -- panel on the right: the window's right metal, the panel's left metal
-Character.SIDE_GAP_LEFT = 4 + 13 + 2   -- panel on the left: the panel's right metal, the window's portrait metal
+-- The gap between the window and the panel: the metal that sticks out of each (the window's 4px right / 13px
+-- portrait left, the panel's corners) and 2px between.
+function Character.Gap(side)
+	local left, right = Metal()
+	if side == "LEFT" then return math.max(0, right) + 13 + 2 end
+	return 4 + math.max(0, -left) + 2
+end
 local function Drawer()
 	local main = UI.frame
 	local f = CreateFrame("Frame", nil, main)
 	f:SetSize(W, main:GetHeight())
-	f:SetPoint("TOPLEFT", main, "TOPRIGHT", Character.SIDE_GAP, 0)
+	f:SetPoint("TOPLEFT", main, "TOPRIGHT", Character.Gap("RIGHT"), 0)
 	f:SetFrameLevel(main:GetFrameLevel() + 30) -- before its children: a child's level is fixed when it's made
 	T.Fill(f, "BACKGROUND", C.paper, nil, -8) -- opaque
 	local ground = f:CreateTexture(nil, "BACKGROUND", nil, -7)
 	f.ground = ground -- (the probe measures it)
-	ground:SetPoint("TOPLEFT", 2, -GROUND_TOP)
-	ground:SetPoint("BOTTOMRIGHT", -2, 2)
+	local _, _, inset = Metal()
+	ground:SetPoint("TOPLEFT", inset, -GROUND_TOP)
+	ground:SetPoint("BOTTOMRIGHT", -inset, 2)
 	if not T.AtlasCrop(ground, "Legacy-Challenge-BG", W - 4, main:GetHeight() - GROUND_TOP - 2, "TOP") then ground:Hide() end
-	f.border = T.NineSlice(f, "ButtonFrameTemplateNoPortrait", 20, next(Character.METAL) and Character.METAL or nil)
+	f.border = T.NineSlice(f, "ButtonFrameTemplateNoPortrait", 20, Character.MetalEdits())
 	f:EnableMouse(true)
 	f:Hide()
 	f:SetScript("OnHide", function() C_Timer.After(0, Character.SlideBack) end)
@@ -131,7 +144,7 @@ end
 function Character.Side(main)
 	local scale = main:GetEffectiveScale() / UIParent:GetEffectiveScale()
 	local right, left, screen = (main:GetRight() or 0) * scale, (main:GetLeft() or 0) * scale, UIParent:GetWidth()
-	local need = (W + math.max(Character.SIDE_GAP, Character.SIDE_GAP_LEFT) + 8) * scale
+	local need = (W + math.max(Character.Gap("RIGHT"), Character.Gap("LEFT")) + 8) * scale
 	if right + need <= screen then return "RIGHT" end
 	if left - need >= 0 then return "LEFT" end
 	local over = right + need - screen
@@ -165,9 +178,9 @@ local function Anchor(f, side)
 	f.side = side
 	f:ClearAllPoints()
 	if side == "LEFT" then
-		f:SetPoint("TOPRIGHT", main, "TOPLEFT", -Character.SIDE_GAP_LEFT, 0)
+		f:SetPoint("TOPRIGHT", main, "TOPLEFT", -Character.Gap("LEFT"), 0)
 	else
-		f:SetPoint("TOPLEFT", main, "TOPRIGHT", Character.SIDE_GAP, 0)
+		f:SetPoint("TOPLEFT", main, "TOPRIGHT", Character.Gap("RIGHT"), 0)
 	end
 end
 
@@ -180,6 +193,22 @@ local function Open(f)
 	Anchor(f, side)
 	f:Show()
 	if not wasShown then T.Reveal(f, 0.2) end
+end
+
+-- 1.1 developer sliders: lay the metal and the leather again on the panels that exist, and re-place them.
+function Character:Restyle()
+	local _, _, inset = Metal()
+	for _, f in ipairs({ self.frame, self.planner }) do
+		if f then
+			T.ApplyNineSlice(f.border, "ButtonFrameTemplateNoPortrait", Character.MetalEdits())
+			if f.ground then
+				f.ground:ClearAllPoints()
+				f.ground:SetPoint("TOPLEFT", inset, -GROUND_TOP)
+				f.ground:SetPoint("BOTTOMRIGHT", -inset, 2)
+			end
+			if f:IsShown() then f.side = nil Anchor(f, (Character.Side(UI.frame))) end
+		end
+	end
 end
 
 -- 1.1 (the user: responsive): while the window is dragged, the open panel takes whichever side has room.

@@ -271,6 +271,34 @@ function Builders.data(body)
 	r.devFill = true
 	r.danger = true
 	rows[#rows + 1] = r
+	-- 1.1: sliders for the side panel's metal and leather, live on the open panel (the user's ask)
+	local function PanelSlider(label, desc, key, min, max)
+		local row = Row(body, label, desc)
+		row.value = T.Text(row, T.F.name, C.ink, "RIGHT")
+		row.metal = T.Slider(row, 160, min, max, 1, function(v)
+			row.value:SetText(tostring(v))
+			if S("devTools") then
+				ns.Core.db.settings[key] = v
+				if ns.Character then ns.Character:Restyle() end
+			end
+		end, function(v) if S("devTools") then Set(key, v) end end)
+		row.metal:SetPoint("TOPRIGHT", row, "TOPRIGHT", -60, -18)
+		row.value:SetPoint("LEFT", row.metal.forward, "RIGHT", 10, 0)
+		row.metal.key = key
+		row.danger = true
+		rows[#rows + 1] = row
+	end
+	PanelSlider(L["Panel: left metal"], L["Where the character panel's left metal sits, in pixels from its edge. Blizzard's: -8."], "panelMetalLeft", -20, 10)
+	PanelSlider(L["Panel: right metal"], L["Where the character panel's right metal sits. Blizzard's: 4."], "panelMetalRight", -10, 20)
+	PanelSlider(L["Panel: leather inset"], L["How far the leather starts inside the panel's left and right edges. Blizzard's: 2."], "panelGround", 0, 24)
+	r = Row(body, L["Panel preview"], L["Opens your character's panel beside this page, to watch the sliders. Run /yl probe to measure it."])
+	r.button = Control(r, T.ActionButton(r, L["Show panel"]))
+	r.button:SetScript("OnClick", function()
+		if S("devTools") and ns.Character then ns.Character:Toggle(ns.Live.CharacterKey()) end
+	end)
+	r.panelPreview = true
+	r.danger = true
+	rows[#rows + 1] = r
 	r = Row(body, L["Screenshot every page"], L["Screenshots every page and tab, for bug reports. Type /reload afterwards to save the layout."])
 	r.button = DangerButton(r, L["Take screenshots"])
 	r.button:SetScript("OnClick", function() if S("devTools") then ns.Shots:Start() end end)
@@ -343,6 +371,20 @@ local function RefreshRow(r)
 		r.value:SetText(r.slider.value .. "%")
 	end
 	if r.sound then r.sound:SetValue(S("soundKey")) end
+	if r.metal then
+		local unlocked = S("devTools") and true or false
+		r.metal:SetValue(tonumber(S(r.metal.key)) or 0)
+		r.value:SetText(tostring(r.metal.value))
+		r.label:SetAlpha(unlocked and 1 or 0.45)
+		r.desc:SetAlpha(unlocked and 1 or 0.45)
+		r.metal:SetAlpha(unlocked and 1 or 0.45)
+	end
+	if r.panelPreview then
+		local unlocked = S("devTools") and true or false
+		r.button:SetEnabled(unlocked)
+		r.label:SetAlpha(unlocked and 1 or 0.45)
+		r.desc:SetAlpha(unlocked and 1 or 0.45)
+	end
 	if r.minimapInfo then
 		r.desc:SetText(ns.Minimap and ns.Minimap:UsesLibrary()
 			and L["Uses LibDBIcon from another addon, so minimap button collectors can gather it. Drag it to move it."]

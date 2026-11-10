@@ -207,6 +207,11 @@ function T.NineSlice(parent, layout, levelOffset, edits)
 	local f = CreateFrame("Frame", nil, parent)
 	f:SetAllPoints()
 	f:SetFrameLevel(parent:GetFrameLevel() + (levelOffset or 0))
+	return T.ApplyNineSlice(f, layout, edits)
+end
+
+-- Lays Blizzard's layout (with edits, if any) onto a frame; again on the same frame to change it.
+function T.ApplyNineSlice(f, layout, edits)
 	if not NineSliceUtil then return f end
 	local base = edits and NineSliceUtil.GetLayout and NineSliceUtil.GetLayout(layout)
 	if base and NineSliceUtil.ApplyLayout then

@@ -49,6 +49,10 @@ local DEFAULTS = {
 		-- 1.1
 		announceNewPoint = true, -- on a new Legacy point, say which characters can spend it
 		barFill = "DefaultBlue", -- the fill of the progress bars: a profession rank-bar art (Theme.BAR_FILLS)
+		-- 1.1 developer sliders (Options > Data): the side panel's metal corners and its leather inset, in pixels
+		panelMetalLeft = -8,   -- x of the left corners (Blizzard: -8)
+		panelMetalRight = 4,   -- x of the right corners (Blizzard: 4)
+		panelGround = 2,       -- the leather's inset from the left and right edges (Blizzard's Bg: 2)
 	},
 	-- status: open | progress | done | all; section: the Challenges tab ("" = its overview);
 	-- sort (1.0): game | closest | points | name, for the rows inside a section
@@ -162,6 +166,7 @@ function Core:SetSetting(key, value)
 	if ns.UI and ns.UI.ApplySettings then ns.UI:ApplySettings() end
 	if key == "minimap" and ns.Minimap and ns.Minimap.Update then ns.Minimap:Update() end
 	if ns.MapZone then ns.MapZone:Refresh() end
+	if key:match("^panel") and ns.Character then ns.Character:Restyle() end
 end
 
 -- withProgress reads the character's progress on multi-part challenges (Live.ProgressSnapshot); that walk is
