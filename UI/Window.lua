@@ -213,6 +213,11 @@ function UI:Create()
 	self.ground = ground
 	-- the frame itself, above the pages so its edge overlaps them as Blizzard's does
 	self.border = T.NineSlice(f, "PortraitFrameTemplate", 40)
+	-- 1.1 (the user's ask): a black disc in the portrait ring, behind the logo. ARTWORK on the border frame: over the
+	-- leather, under the ring (the corner piece is OVERLAY), and the logo above both
+	self.disc = self.border:CreateTexture(nil, "ARTWORK", nil, 7)
+	self.disc:SetTexture(T.Path("Disc"))
+	self.disc:SetVertexColor(0, 0, 0, 1)
 	local portrait = self.border:CreateTexture(nil, "OVERLAY", nil, 7) -- above the nine-slice's portrait ring
 	portrait:SetSize(75, 75)
 	portrait:SetTexture(T.MEDIA .. "Logo")
@@ -364,11 +369,12 @@ end
 local PORTRAIT_FROM_CORNER = { 25 + 13, -23 - 16 } -- the ring's centre from TopLeftCorner's top-left (x -13, y 16)
 function UI.WindowMetal()
 	local s = ns.Core.db and ns.Core.db.settings or {}
-	return tonumber(s.windowMetalLeft) or -13, tonumber(s.windowMetalRight) or 4, tonumber(s.windowGround) or 2
+	return tonumber(s.windowMetalLeft) or -17, tonumber(s.windowMetalRight) or 5, tonumber(s.windowGround) or 1,
+		tonumber(s.windowLogoDisc) or 60
 end
 function UI:RestyleMetal()
 	if not (self.border and self.ground) then return end
-	local left, right, inset = UI.WindowMetal()
+	local left, right, inset, disc = UI.WindowMetal()
 	local edits
 	if left ~= -13 or right ~= 4 then
 		edits = { TopLeftCorner = { x = left }, BottomLeftCorner = { x = left }, TopRightCorner = { x = right }, BottomRightCorner = { x = right } }
@@ -383,6 +389,11 @@ function UI:RestyleMetal()
 		self.portrait:SetPoint("CENTER", corner, "TOPLEFT", PORTRAIT_FROM_CORNER[1], PORTRAIT_FROM_CORNER[2])
 	else
 		self.portrait:SetPoint("CENTER", self.border, "TOPLEFT", 25 + (left + 13), -23)
+	end
+	if self.disc then
+		self.disc:ClearAllPoints()
+		self.disc:SetPoint("CENTER", self.portrait, "CENTER", 0, 0)
+		self.disc:SetSize(disc, disc)
 	end
 end
 

@@ -444,6 +444,8 @@ ns.LOCALES.deDE = {
 	["Drag to move it."] = "Zum Verschieben ziehen.",
 	["Open Your Legacy"] = "Your Legacy öffnen",
 	-- 1.1
+	["Window: logo backdrop"] = "Hauptfenster: Logo-Hintergrund",
+	["The size of the black disc behind the logo, in pixels."] = "Die Größe der schwarzen Scheibe hinter dem Logo, in Pixeln.",
 	["Window: left metal"] = "Hauptfenster: linkes Metall",
 	["Window: right metal"] = "Hauptfenster: rechtes Metall",
 	["Window: leather inset"] = "Hauptfenster: Leder-Abstand",

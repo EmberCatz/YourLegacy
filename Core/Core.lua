@@ -53,9 +53,10 @@ local DEFAULTS = {
 		panelMetalLeft = -17,  -- x of the left corners (Blizzard: -8; -17 is the user's pick, 2026-11-10)
 		panelMetalRight = 4,   -- x of the right corners (Blizzard: 4)
 		panelGround = 2,       -- the leather's inset from the left and right edges (Blizzard's Bg: 2)
-		windowMetalLeft = -13, -- the main window's left corners (PortraitFrameTemplate: -13)
-		windowMetalRight = 4,  -- its right corners (4)
-		windowGround = 2,      -- its leather inset (2)
+		windowMetalLeft = -17, -- the main window's left corners (PortraitFrameTemplate: -13; the user's pick -17)
+		windowMetalRight = 5,  -- its right corners (4; the user's pick 5)
+		windowGround = 1,      -- its leather inset (2; the user's pick 1)
+		windowLogoDisc = 60,   -- the black disc behind the logo, its diameter (the user's ask, 2026-11-10)
 	},
 	-- status: open | progress | done | all; section: the Challenges tab ("" = its overview);
 	-- sort (1.0): game | closest | points | name, for the rows inside a section
