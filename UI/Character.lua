@@ -1,4 +1,5 @@
--- Drawers over the right side of the ledger window (inside it, so they never run off a small screen):
+-- Side panels beside the ledger window (1.1, the user's pick: outside its right edge, full height, like Blizzard's
+-- side panels; on the left when the screen has no room on the right). Until 1.1 they docked inside, over the roster:
 -- * the character panel: one character's gear, gold, professions and general info and, on Hardcore, alive /
 --   fallen. The character you're playing is read live; others show their last logout (Live.Snapshot).
 --   0.9.1: no bags any more (the user: overkill for the addon).
@@ -52,20 +53,22 @@ ns.ProfRank = ProfRank
 -- (ButtonFrameTemplateNoPortrait, the bronze Forever draws for its windows), the title in the class colour in the
 -- frame's top strip, Blizzard's close button. The Roster reflows its cards into the space beside it.
 -- 0.9.1: it starts under the window's header line, like the pages, and is as tall as they are.
+Character.SIDE_GAP = 2 -- between the window's frame and the panel's
 local function Drawer()
 	local main = UI.frame
 	local f = CreateFrame("Frame", nil, main)
-	f:SetSize(W, UI.CONTENT_H)
-	f:SetPoint("TOPRIGHT", main, "TOPRIGHT", -14, -UI.PAGE_TOP)
+	f:SetSize(W, main:GetHeight())
+	f:SetPoint("TOPLEFT", main, "TOPRIGHT", Character.SIDE_GAP, 0)
 	f:SetFrameLevel(main:GetFrameLevel() + 30) -- before its children: a child's level is fixed when it's made
 	T.Fill(f, "BACKGROUND", C.paper, nil, -8) -- opaque
 	local ground = f:CreateTexture(nil, "BACKGROUND", nil, -7)
 	ground:SetPoint("TOPLEFT", 2, -GROUND_TOP)
 	ground:SetPoint("BOTTOMRIGHT", -2, 2)
-	if not T.AtlasCrop(ground, "Legacy-Challenge-BG", W - 4, UI.CONTENT_H - GROUND_TOP - 2, "TOP") then ground:Hide() end
+	if not T.AtlasCrop(ground, "Legacy-Challenge-BG", W - 4, main:GetHeight() - GROUND_TOP - 2, "TOP") then ground:Hide() end
 	f.border = T.NineSlice(f, "ButtonFrameTemplateNoPortrait", 20)
 	f:EnableMouse(true)
 	f:Hide()
+	f:SetScript("OnHide", function() C_Timer.After(0, Character.SlideBack) end)
 	-- the title strip of the metal frame, as the main window's
 	f.band = CreateFrame("Frame", nil, f.border)
 	f.band:SetPoint("TOPLEFT", 0, 0)
@@ -106,10 +109,53 @@ local function Drawer()
 	return f
 end
 
+-- Which side of the window: the right, unless the panel would run off the screen there and fits on the left.
+-- When it fits on neither (a centred window at a large scale), the window slides over just enough, and back when
+-- the panel closes if it hasn't been moved since (Character.shifted).
+function Character.Side(main)
+	local scale = main:GetEffectiveScale() / UIParent:GetEffectiveScale()
+	local right, left, screen = (main:GetRight() or 0) * scale, (main:GetLeft() or 0) * scale, UIParent:GetWidth()
+	local need = (W + Character.SIDE_GAP) * scale
+	if right + need <= screen then return "RIGHT" end
+	if left - need >= 0 then return "LEFT" end
+	local over = right + need - screen
+	if over <= left then return "RIGHT", over / scale end -- slide left by this much (window units)
+	return "RIGHT"
+end
+
+local function Slide(main, dx)
+	local point, rel, relPoint, x, y = main:GetPoint(1)
+	if not point then return end
+	main:ClearAllPoints()
+	main:SetPoint(point, rel, relPoint, (x or 0) - dx, y or 0)
+	Character.shifted = { dx = dx, x = (x or 0) - dx, y = y or 0 }
+end
+
+function Character.SlideBack()
+	local s, main = Character.shifted, UI.frame
+	Character.shifted = nil
+	if not (s and main) then return end
+	if (Character.frame and Character.frame:IsShown()) or (Character.planner and Character.planner:IsShown()) then return end
+	local point, rel, relPoint, x, y = main:GetPoint(1)
+	if point and math.abs((x or 0) - s.x) < 0.5 and math.abs((y or 0) - s.y) < 0.5 then
+		main:ClearAllPoints()
+		main:SetPoint(point, rel, relPoint, s.x + s.dx, s.y)
+	end
+end
+
 local function Open(f)
 	local wasShown = f:IsShown()
+	local main = UI.frame
+	local side, slide = Character.Side(main)
+	if slide and not InCombatLockdown() then Slide(main, slide) end
+	f:ClearAllPoints()
+	if side == "LEFT" then
+		f:SetPoint("TOPRIGHT", main, "TOPLEFT", -Character.SIDE_GAP, 0)
+	else
+		f:SetPoint("TOPLEFT", main, "TOPRIGHT", Character.SIDE_GAP, 0)
+	end
 	f:Show()
-	if not wasShown then T.Reveal(f, 0.2, 0.97, 0, "RIGHT") end
+	if not wasShown then T.Reveal(f, 0.2, 0.97, 0, side == "LEFT" and "RIGHT" or "LEFT") end
 end
 
 ---------------------------------------------------------------- character panel
@@ -589,4 +635,5 @@ end
 
 function Character:Shown() return self.frame and self.frame:IsShown() and self.frame.key end
 function Character:PlanShown() return self.planner and self.planner:IsShown() and self.planner.token end
-function Character:Docked() return (self:Shown() or self:PlanShown()) and true or false end
+-- 1.1: the panels sit beside the window, so nothing inside it makes room for them any more.
+function Character:Docked() return false end
