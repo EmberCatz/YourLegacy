@@ -201,11 +201,30 @@ end
 
 -- A Blizzard NineSlice border (PortraitFrameTemplate, InsetFrameTemplate...), drawn on its own child frame so it
 -- can sit above or below the content. Returns the frame.
-function T.NineSlice(parent, layout, levelOffset)
+-- edits (1.1): changes to some pieces of Blizzard's layout, e.g. { TopLeftCorner = { x = -2 } }. The layout is copied
+-- (NineSliceUtil.GetLayout), never changed in place.
+function T.NineSlice(parent, layout, levelOffset, edits)
 	local f = CreateFrame("Frame", nil, parent)
 	f:SetAllPoints()
 	f:SetFrameLevel(parent:GetFrameLevel() + (levelOffset or 0))
-	if NineSliceUtil and NineSliceUtil.ApplyLayoutByName then NineSliceUtil.ApplyLayoutByName(f, layout) end
+	if not NineSliceUtil then return f end
+	local base = edits and NineSliceUtil.GetLayout and NineSliceUtil.GetLayout(layout)
+	if base and NineSliceUtil.ApplyLayout then
+		local copy = {}
+		for key, piece in pairs(base) do
+			if type(piece) == "table" then
+				local p = {}
+				for k, v in pairs(piece) do p[k] = v end
+				for k, v in pairs(edits[key] or {}) do p[k] = v end
+				copy[key] = p
+			else
+				copy[key] = piece
+			end
+		end
+		NineSliceUtil.ApplyLayout(f, copy)
+	elseif NineSliceUtil.ApplyLayoutByName then
+		NineSliceUtil.ApplyLayoutByName(f, layout)
+	end
 	return f
 end
 

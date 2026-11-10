@@ -57,7 +57,7 @@ ns.ProfRank = ProfRank
 -- Forever): 4px on the right of both, 8px on the left of ButtonFrameTemplateNoPortrait, 13px on the left of
 -- PortraitFrameTemplate. 1.1 had 2px, so the metal overlapped (the user: too close, art spilling over).
 -- These leave 2px between the metal edges.
-Character.SIDE_GAP = 4 + 8 + 2         -- panel on the right: the window's right metal, the panel's left metal
+Character.SIDE_GAP = 4 + 2 + 2         -- panel on the right: the window's right metal, the panel's left metal (now 2)
 Character.SIDE_GAP_LEFT = 4 + 13 + 2   -- panel on the left: the panel's right metal, the window's portrait metal
 local function Drawer()
 	local main = UI.frame
@@ -71,7 +71,10 @@ local function Drawer()
 	ground:SetPoint("TOPLEFT", 2, -GROUND_TOP)
 	ground:SetPoint("BOTTOMRIGHT", -2, 2)
 	if not T.AtlasCrop(ground, "Legacy-Challenge-BG", W - 4, main:GetHeight() - GROUND_TOP - 2, "TOP") then ground:Hide() end
-	f.border = T.NineSlice(f, "ButtonFrameTemplateNoPortrait", 20)
+	-- 1.1: the left metal where the right one is. Blizzard places this layout's left pieces 8px outside the frame and
+	-- its right pieces 2px outside (probe 2026-11-10: all six are 95px textures, L-8 and R+2), so the left rim stood
+	-- 6px further out and the leather showed through beside it (the user: "overshoot to the left").
+	f.border = T.NineSlice(f, "ButtonFrameTemplateNoPortrait", 20, { TopLeftCorner = { x = -2 }, BottomLeftCorner = { x = -2 } })
 	f:EnableMouse(true)
 	f:Hide()
 	f:SetScript("OnHide", function() C_Timer.After(0, Character.SlideBack) end)
