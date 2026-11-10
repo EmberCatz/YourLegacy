@@ -93,20 +93,8 @@ function Z.Lines(mapID)
 			if not seen[m.item.id .. ":" .. e.name] then
 				seen[m.item.id .. ":" .. e.name] = true
 				goals = goals + 1
-				local missing, left, total = ns.Instance.Missing(m)
-				local text, share
-				local label = ns.Data.WithLevels(e.name, e.journalID) -- 1.1: "Wailing Caverns (17-24)"
-				if m.item.completed or (not m.whole and #missing == 0) or (m.whole and left == 0) then
-					text, share = string.format(L["%s: done"], label), 1
-				elseif m.whole and total > 1 then
-					text, share = string.format(L["%s: %d of %d bosses left"], label, left, total), (total - left) / total
-				elseif m.whole then
-					text, share = string.format(L["%s: not done yet"], label), 0
-				elseif #m.parts > 1 then
-					text, share = string.format(L["%s: %d wings left"], label, #missing), (#m.parts - #missing) / #m.parts
-				else
-					text, share = string.format(L["%s: needs a clear"], label), 0
-				end
+				local label = ns.Data.WithLevels(e.name, e.journalID, e.english) -- 1.1: "Wailing Caverns (17-24)"
+				local text, share = Z.Status(m, label)
 				sum = sum + share
 				if share >= 1 then done = done + 1 end
 				lines[#lines + 1] = { text = text, done = share >= 1 }
@@ -150,6 +138,46 @@ function Z.NameList(list)
 	local text = table.concat(shown, ", ")
 	if #list > Z.MAX_AREAS then text = text .. ", " .. string.format(L["and %d more"], #list - Z.MAX_AREAS) end
 	return text
+end
+
+-- One dungeon or raid's line for one challenge it counts toward, and its share done (0-1). label starts the line:
+-- the dungeon on the banner, the challenge on OpenMap's dungeon card.
+function Z.Status(m, label)
+	local missing, left, total = ns.Instance.Missing(m)
+	if m.item.completed or (not m.whole and #missing == 0) or (m.whole and left == 0) then
+		return string.format(L["%s: done"], label), 1
+	elseif m.whole and total > 1 then
+		return string.format(L["%s: %d of %d bosses left"], label, left, total), (total - left) / total
+	elseif m.whole then
+		return string.format(L["%s: not done yet"], label), 0
+	elseif #m.parts > 1 then
+		return string.format(L["%s: %d wings left"], label, #missing), (#m.parts - #missing) / #m.parts
+	end
+	return string.format(L["%s: needs a clear"], label), 0
+end
+
+-- 1.1: a section on OpenMap's dungeon cards (OpenMapAPI.RegisterDungeonSection, its public API): what this dungeon
+-- or raid still counts for. info.instances = { { name, minLevel, maxLevel, raid, bosses } } (OpenMap's API.lua).
+function Z.OpenMapSection(info)
+	local lines = {}
+	for _, inst in ipairs(type(info) == "table" and info.instances or {}) do
+		if type(inst) == "table" and type(inst.name) == "string" then
+			for _, m in ipairs(Live.InstanceChallenges(inst.name, inst.raid and "raid" or "party")) do
+				local text, share = Z.Status(m, m.item.name)
+				if #(info.instances) > 1 then text = inst.name .. " - " .. text end
+				lines[#lines + 1] = (share >= 1 and T.Hex(C.teal) or "") .. text .. (share >= 1 and "|r" or "")
+			end
+		end
+	end
+	if #lines == 0 then return nil end
+	return L["Your Legacy"], lines
+end
+
+function Z.RegisterOpenMap()
+	local api = Live.OpenMapAPI()
+	if Z.openMapRegistered or not (api and type(api.RegisterDungeonSection) == "function") then return end
+	Z.openMapRegistered = true
+	Live.try(api.RegisterDungeonSection, "YourLegacy", Z.OpenMapSection)
 end
 
 -- "48%": rounded down, so 100% means every goal here is done.
@@ -261,11 +289,11 @@ function Z:Layout()
 	local lines, ratio, done, goals, name = Z.Lines(mapID)
 	local newMap = shown.map ~= mapID
 	-- 1.1: entrances come from Blizzard's pins when the API gives none (probe 2026-11-10); note what each source had
-	local fromAPI, pins = #Live.DungeonEntrancesFromAPI(mapID), #Live.MapEntrancePins()
+	local fromAPI, pins, questie = #Live.DungeonEntrancesFromAPI(mapID), #Live.MapEntrancePins(), #Live.QuestieEntrances(mapID)
 	shown = { map = mapID, challenges = Live.Challenges(), pins = pins }
 	if newMap and name then
 		local seen = ns.Core.db.evidence.entrances or { maps = {} }
-		seen.maps[name] = string.format("api %d, pins %d", fromAPI, pins)
+		seen.maps[name] = string.format("api %d, pins %d, questie %d", fromAPI, pins, questie)
 		ns.Core:Evidence("entrances", seen)
 	end
 	if #lines == 0 then if box then box:Hide() end return end
@@ -333,6 +361,7 @@ end
 
 -- Called at PLAYER_LOGIN. EventRegistry callbacks run apart from Blizzard's own code (CallbackRegistryMixin).
 function Z:Register()
+	Z.RegisterOpenMap()
 	if self.registered or type(EventRegistry) ~= "table" or type(EventRegistry.RegisterCallback) ~= "function" then return end
 	self.registered = true
 	EventRegistry:RegisterCallback("WorldMapOnShow", self.OnMapShow, self)

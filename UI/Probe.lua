@@ -141,12 +141,13 @@ Check("dungeons", "Dungeon and raid names", function(run)
 	for _, m in ipairs(Live.AllMaps()) do
 		for _, e in ipairs(Live.DungeonEntrances(m.id)) do
 			if not journal[e.name] then
-				journal[e.name] = e.journalID or true
+				journal[e.name] = e.journalID or e.areaID or true
 				entrances[#entrances + 1] = e
 			end
 		end
 	end
 	run.journal = journal
+	local source = entrances[1] and (entrances[1].source or "game") or nil
 	if #entrances == 0 then
 		-- 2026-11-10: none on any map in game. Say why, on maps that have entrances in every version of the game.
 		local ids = { Live.PlayerMap() }
@@ -176,10 +177,10 @@ Check("dungeons", "Dungeon and raid names", function(run)
 		end
 	end
 	for _, e in ipairs(entrances) do
-		if not Data.LevelRange(e.name, type(e.journalID) == "number" and e.journalID or nil) then noLevels[#noLevels + 1] = e.name end
+		if not Data.LevelRange(e.name, type(e.journalID) == "number" and e.journalID or nil, e.english) then noLevels[#noLevels + 1] = e.name end
 	end
 	run.noLevels = noLevels
-	local text = string.format("%d entrances.", #entrances)
+	local text = string.format("%d entrances (from %s).", #entrances, source)
 	if #noLevels > 0 then text = text .. " No level range: " .. Join(noLevels) .. "." end
 	if #unmatched > 0 then return "fail", text .. " Dungeon parts with no entrance of that name: " .. Join(unmatched) end
 	return "pass", text .. " Every dungeon part matches an entrance."
@@ -224,7 +225,7 @@ local EVIDENCE = {
 			local bits, any = {}, false
 			for name, text in pairs(e.maps or {}) do
 				bits[#bits + 1] = name .. ": " .. text
-				if not text:find("api 0, pins 0", 1, true) then any = true end
+				if not text:find("api 0, pins 0, questie 0", 1, true) then any = true end
 			end
 			table.sort(bits)
 			return any, Join(bits, 20)

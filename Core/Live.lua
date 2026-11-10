@@ -498,13 +498,69 @@ function Live.MapEntrancePins()
 	return out
 end
 
+-- 1.1: Questie's dungeon table, when Questie is loaded (the probe, 2026-11-10: the game's call is empty on every map and
+-- Blizzard draws no entrance pins; the icons players see are OpenMap's and Questie's). QuestieLoader is the one
+-- class Questie calls public; ZoneDB:GetDungeons() gives [areaID] = { English name, other area IDs, parent zone,
+-- { { zone areaID, x %, y % }, ... } } and ZoneDB:GetUiMapIdByAreaId turns a zone into a map. Read only, every call
+-- guarded; the name comes from the game (C_Map.GetAreaInfo, the client's language), the English one is kept for the
+-- level ranges. Built once Questie's table is there, then kept for the session.
+local questieIndex
+function Live.QuestieEntrances(mapID)
+	if not questieIndex then
+		local loader = QuestieLoader
+		if type(loader) ~= "table" or type(loader.ImportModule) ~= "function" then return {} end
+		local zoneDB = try(loader.ImportModule, loader, "ZoneDB")
+		local dungeons = type(zoneDB) == "table" and type(zoneDB.GetDungeons) == "function" and try(zoneDB.GetDungeons, zoneDB)
+		if type(dungeons) ~= "table" or not next(dungeons) then return {} end -- not built yet: ask again later
+		local index = {}
+		for areaID, d in pairs(dungeons) do
+			if type(d) == "table" and type(d[1]) == "string" and type(d[4]) == "table" then
+				local name = (C_Map and try(C_Map.GetAreaInfo, areaID)) or d[1]
+				local kind = Data.RAID_KEYS[Data.LevelKey(d[1])] and "raid" or "party"
+				for _, loc in ipairs(d[4]) do
+					local uiMap = type(loc) == "table" and tonumber(loc[2]) and try(zoneDB.GetUiMapIdByAreaId, zoneDB, loc[1])
+					if uiMap then
+						local list = index[uiMap] or {}
+						list[#list + 1] = { name = name, english = d[1], x = loc[2] / 100, y = (tonumber(loc[3]) or 0) / 100,
+							kind = kind, areaID = areaID, source = "questie" }
+						index[uiMap] = list
+					end
+				end
+			end
+		end
+		questieIndex = index
+	end
+	return questieIndex[mapID] or {}
+end
+
+-- Dungeon and raid entrances on a map: the game's, else Blizzard's pins on the open map, else Questie's table.
 function Live.DungeonEntrances(mapID)
 	local out = Live.DungeonEntrancesFromAPI(mapID)
 	if #out > 0 then return out end
-	-- the API gave nothing: fall back to Blizzard's pins while the world map shows this map
 	local _, shownID = Live.MapView()
-	if shownID and shownID == mapID then return Live.MapEntrancePins() end
-	return out
+	if shownID and shownID == mapID then
+		out = Live.MapEntrancePins()
+		if #out > 0 then return out end
+	end
+	-- Questie's, plus the new Forever dungeons it doesn't have yet (Data.EXTRA_ENTRANCES)
+	local list, have = {}, {}
+	for _, e in ipairs(Live.QuestieEntrances(mapID)) do
+		list[#list + 1] = e
+		have[Data.LevelKey(e.english or e.name)] = true
+	end
+	local mapName = Live.MapName(mapID)
+	for _, x in ipairs(Data.EXTRA_ENTRANCES) do
+		if (x.map == mapID or (x.mapName and x.mapName == mapName)) and not have[Data.LevelKey(x.name)] then
+			list[#list + 1] = { name = x.name, english = x.name, kind = Data.RAID_KEYS[Data.LevelKey(x.name)] and "raid" or "party", source = "guide" }
+		end
+	end
+	return list
+end
+
+-- OpenMap's public API (OpenMapAPI, its API.lua), when OpenMap is loaded.
+function Live.OpenMapAPI()
+	local api = OpenMapAPI
+	return type(api) == "table" and api or nil
 end
 
 function Live.DungeonEntrancesFromAPI(mapID)

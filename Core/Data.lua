@@ -235,6 +235,22 @@ Data.DUNGEON_LEVELS = {
 	["ruins of ahnqiraj"] = { 60, 60 }, ["temple of ahnqiraj"] = { 60, 60 }, ["naxxramas"] = { 60, 60 },
 	["hyjal summit"] = { 60, 60 }, ["barrow deeps"] = { 60, 60 },
 }
+-- Raids by the same keys (an entrance from Questie carries no raid flag).
+Data.RAID_KEYS = {
+	["molten core"] = true, ["onyxias lair"] = true, ["blackwing lair"] = true, ["zulgurub"] = true, ["ruins of ahnqiraj"] = true,
+	["temple of ahnqiraj"] = true, ["naxxramas"] = true, ["hyjal summit"] = true, ["barrow deeps"] = true,
+}
+-- Zones of the new Forever dungeons that neither the game's call (empty, probe 2026-11-10) nor Questie's table
+-- (QuestieDB/support/Forever, checked 2026-11-10) has. Zone only: the banner lists a zone's dungeons, it draws no
+-- pins. Zones from mobalytics.gg's dungeon map and zockify.com's dungeon list; uiMap IDs are the Classic ones,
+-- Riverglades (new in Forever) by name. Names are English: other languages match once a probe has their IDs.
+Data.EXTRA_ENTRANCES = {
+	{ name = "The Drowned City", map = 1434 },            -- Stranglethorn Vale
+	{ name = "Krol'dok Stronghold", mapName = "Riverglades" },
+	{ name = "Alcaz Prison", map = 1445 },                -- Dustwallow Marsh
+	{ name = "Blackmaw Hold", map = 1447 },               -- Azshara
+	{ name = "The Shaper's Terrace", map = 1449 },        -- Un'Goro Crater
+}
 -- [journalInstanceID] = { min, max }, from probe captures (empty until one is in).
 Data.DUNGEON_LEVEL_IDS = {}
 
@@ -247,8 +263,9 @@ function Data.LevelKey(name)
 end
 
 -- { min, max } for a dungeon or raid, by journal ID when known, else by name ("A or B": the first that's known).
-function Data.LevelRange(name, journalID)
+function Data.LevelRange(name, journalID, english)
 	if journalID and Data.DUNGEON_LEVEL_IDS[journalID] then return Data.DUNGEON_LEVEL_IDS[journalID] end
+	if english and Data.DUNGEON_LEVELS[Data.LevelKey(english)] then return Data.DUNGEON_LEVELS[Data.LevelKey(english)] end
 	local r = Data.DUNGEON_LEVELS[Data.LevelKey(name)]
 	if r then return r end
 	for part in (tostring(name or "") .. " or "):gmatch("(.-) or ") do
@@ -258,8 +275,8 @@ function Data.LevelRange(name, journalID)
 end
 
 -- "Wailing Caverns (17-24)", "Onyxia's Lair (60)", or the name unchanged when its range isn't known.
-function Data.WithLevels(name, journalID)
-	local r = Data.LevelRange(name, journalID)
+function Data.WithLevels(name, journalID, english)
+	local r = Data.LevelRange(name, journalID, english)
 	if not r then return name end
 	return r[1] == r[2] and string.format("%s (%d)", name, r[1]) or string.format("%s (%d-%d)", name, r[1], r[2])
 end

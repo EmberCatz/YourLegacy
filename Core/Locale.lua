@@ -444,6 +444,7 @@ ns.LOCALES.deDE = {
 	["Drag to move it."] = "Zum Verschieben ziehen.",
 	["Open Your Legacy"] = "Your Legacy öffnen",
 	-- 1.1
+	["Your Legacy"] = "Your Legacy",
 	["Checks what Your Legacy relies on in this client and lists what still needs a look in game. Type /reload afterwards to save the results."] = "Prüft, worauf sich Your Legacy in diesem Client verlässt, und listet, was noch im Spiel angesehen werden muss. Gib danach /reload ein, um die Ergebnisse zu speichern.",
 	["Probe"] = "Prüfung",
 	["Probe: %d passed, %d failed, %d waiting for play, %d to check by hand. /reload saves it for a bug report."] = "Prüfung: %d bestanden, %d fehlgeschlagen, %d warten aufs Spielen, %d von Hand zu prüfen. /reload speichert sie für eine Fehlermeldung.",
