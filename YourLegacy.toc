@@ -3,7 +3,7 @@
 ## Notes: Your account's Legacy progress in one window: points, reward track, every challenge, your characters and Legacy tree plans.
 ## Notes-deDE: Der Vermächtnis-Fortschritt deines Accounts in einem Fenster: Punkte, Belohnungsleiste, alle Herausforderungen, deine Charaktere und Pläne für den Vermächtnisbaum.
 ## Author: EmberCatz
-## Version: 1.0.0
+## Version: 1.1.0
 ## IconTexture: Interface\AddOns\YourLegacy\media\Icon
 ## SavedVariables: YourLegacyDB
 ## AddonCompartmentFunc: YourLegacy_OnAddonCompartmentClick
