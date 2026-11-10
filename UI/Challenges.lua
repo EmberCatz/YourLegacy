@@ -290,7 +290,9 @@ local function CreateIcon(parent)
 	b.tile = T.Tile(b, ICON)
 	b.tile:SetPoint("TOP")
 	b.hl = T.Hover(b.tile, 0.7)
-	b.check = b:CreateTexture(nil, "OVERLAY")
+	-- 1.1 (the user: the checks sat under the icons): on the tile itself, its top draw layer. The tile is a child
+	-- frame, so it drew over anything on the button
+	b.check = b.tile:CreateTexture(nil, "OVERLAY", nil, 7)
 	b.check:SetSize(16, 14)
 	b.check:SetPoint("BOTTOMRIGHT", b.tile, "BOTTOMRIGHT", 3, -3)
 	if not T.Atlas(b.check, "worldquest-tracker-checkmark") then b.check:SetTexture(T.Path("Check")) end

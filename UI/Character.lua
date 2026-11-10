@@ -53,7 +53,12 @@ ns.ProfRank = ProfRank
 -- (ButtonFrameTemplateNoPortrait, the bronze Forever draws for its windows), the title in the class colour in the
 -- frame's top strip, Blizzard's close button. The Roster reflows its cards into the space beside it.
 -- 0.9.1: it starts under the window's header line, like the pages, and is as tall as they are.
-Character.SIDE_GAP = 2 -- between the window's frame and the panel's
+-- The gap between the two frames' rects. Blizzard's metal sticks out past a frame's rect (NineSliceLayouts.lua,
+-- Forever): 4px on the right of both, 8px on the left of ButtonFrameTemplateNoPortrait, 13px on the left of
+-- PortraitFrameTemplate. 1.1 had 2px, so the metal overlapped (the user: too close, art spilling over).
+-- These leave 2px between the metal edges.
+Character.SIDE_GAP = 4 + 8 + 2         -- panel on the right: the window's right metal, the panel's left metal
+Character.SIDE_GAP_LEFT = 4 + 13 + 2   -- panel on the left: the panel's right metal, the window's portrait metal
 local function Drawer()
 	local main = UI.frame
 	local f = CreateFrame("Frame", nil, main)
@@ -117,7 +122,7 @@ end
 function Character.Side(main)
 	local scale = main:GetEffectiveScale() / UIParent:GetEffectiveScale()
 	local right, left, screen = (main:GetRight() or 0) * scale, (main:GetLeft() or 0) * scale, UIParent:GetWidth()
-	local need = (W + Character.SIDE_GAP) * scale
+	local need = (W + math.max(Character.SIDE_GAP, Character.SIDE_GAP_LEFT) + 8) * scale
 	if right + need <= screen then return "RIGHT" end
 	if left - need >= 0 then return "LEFT" end
 	local over = right + need - screen
@@ -151,7 +156,7 @@ local function Anchor(f, side)
 	f.side = side
 	f:ClearAllPoints()
 	if side == "LEFT" then
-		f:SetPoint("TOPRIGHT", main, "TOPLEFT", -Character.SIDE_GAP, 0)
+		f:SetPoint("TOPRIGHT", main, "TOPLEFT", -Character.SIDE_GAP_LEFT, 0)
 	else
 		f:SetPoint("TOPLEFT", main, "TOPRIGHT", Character.SIDE_GAP, 0)
 	end

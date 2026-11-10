@@ -182,7 +182,7 @@ local function CreateCharacterCard(parent)
 		end
 	end)
 	card.onEnter = function(self)
-		GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+		GameTooltip:SetOwner(self, "ANCHOR_CURSOR_RIGHT", 16, 4) -- 1.1: at the mouse (the user)
 		GameTooltip:SetText(self.charName or "", T.unpack(C.ink))
 		-- perks that no longer help at this level, and what they'd free
 		for _, d in ipairs(self.dead or {}) do
@@ -225,7 +225,7 @@ local function CreatePlanCard(parent)
 	card.suggest:SetWordWrap(false)
 	card:SetScript("OnClick", function(self) ns.Character:TogglePlan(self.intentClass) end)
 	card:SetScript("OnEnter", function(self)
-		GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+		GameTooltip:SetOwner(self, "ANCHOR_CURSOR_RIGHT", 16, 4) -- 1.1: at the mouse (the user)
 		GameTooltip:SetText(Live.ClassName(self.intentClass), T.unpack(C.ink))
 		GameTooltip:AddLine(L["Click to plan it: ruleset, race and crafts."], T.unpack(C.ink2))
 		GameTooltip:Show()
@@ -351,7 +351,7 @@ local function BuildRoster(page)
 		c.more:SetPoint("RIGHT", -2, 0)
 		c.more:SetWordWrap(false)
 		c:SetScript("OnEnter", function(self)
-			GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+			GameTooltip:SetOwner(self, "ANCHOR_CURSOR_RIGHT", 16, 4) -- 1.1: at the mouse (the user)
 			GameTooltip:SetText(self.craftName or "", T.unpack(C.ink))
 			for _, h in ipairs(self.holders or {}) do GameTooltip:AddDoubleLine(h.name, h.skill, T.unpack(C.ink2)) end
 			for _, token in ipairs(self.planned or {}) do
