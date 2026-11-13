@@ -113,6 +113,7 @@ function Builders.window(body)
 	SwitchRow(body, rows, L["Lock window position"], L["Stop the window from being dragged."], "locked")
 	SwitchRow(body, rows, L["Close in combat"], L["Close the window when combat starts. It doesn't update during combat either way."], "combatHide")
 	SwitchRow(body, rows, L["Animations"], L["Short fades when you open the window, switch tabs or pick an option. Turn it off for a still window."], "animations")
+	SwitchRow(body, rows, L["Legacy window at 0 points"], L["Let the game's Legacy key and menu button open Blizzard's Legacy window before you have a point. The game keeps it locked until then."], "unlockLegacy")
 	return rows
 end
 

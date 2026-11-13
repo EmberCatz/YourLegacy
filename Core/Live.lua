@@ -183,7 +183,7 @@ local function LocalProgress(sub, description, chars)
 	if who then return math.min(best / target, 1), string.format("%d / %d", best, target), who end
 end
 
--- Profession ranks are gated by character level in Forever (research/03-professions.md): a skill target can't be
+-- Profession ranks are gated by character level in Forever (archive/research/03-professions.md): a skill target can't be
 -- reached until the character who holds the profession is old enough. Returns that level when it's still ahead.
 local function ProfessionGate(sub, description, chars)
 	local gate = Data.PROF_GATES[tonumber((description or ""):match("(%d+)")) or 0]
@@ -339,7 +339,7 @@ end
 
 -- 1.0 zone progress on the world map. The map's canvas and the map it shows, or nil while there's no world map.
 -- MapCanvasMixin:GetCanvas / GetMapID (Blizzard_MapCanvas/Blizzard_MapCanvas.lua, Forever). Reads only: the box
--- never goes through the map's data providers or pin pools (research/19-feature-plan.md #8).
+-- never goes through the map's data providers or pin pools (archive/research/19-feature-plan.md #8).
 function Live.MapView()
 	local map = WorldMapFrame
 	if type(map) ~= "table" or type(map.GetCanvas) ~= "function" then return nil end
@@ -708,7 +708,7 @@ end
 local cache, trackedCache
 function Live.Invalidate() cache, trackedCache = nil, nil end
 
--- Everything the ledger knows, as plain data for /yl export (format documented in dashboard/README.md).
+-- Everything the ledger knows, as plain data for /yl export (format documented in archive/dashboard/README.md).
 -- earnedLog and characters come from SavedVariables; the rest is read live.
 function Live.Export(db)
 	local _, build = try(GetBuildInfo)
@@ -1054,17 +1054,72 @@ function Live.Snapshot()
 	}
 end
 
--- Opens Blizzard's Legacy panel (Y), on the challenge page when an ID is given. Not in combat:
+-- 1.2: unspent class talent points of the live character (the class tree's currency), or nil when unreadable.
+function Live.ClassTalentUnspent()
+	local cfg = C_ClassTalents and try(C_ClassTalents.GetActiveConfigID)
+	local info = cfg and C_Traits and try(C_Traits.GetConfigInfo, cfg)
+	local treeID = info and info.treeIDs and info.treeIDs[1]
+	local cur = treeID and try(C_Traits.GetTreeCurrencyInfo, cfg, treeID, false)
+	return cur and cur[1] and cur[1].quantity or nil
+end
+
+-- 1.2: is the Legacy window locked? Blizzard_LegacySystem_Bootstrap.lua: ToggleLegacySystemUI returns while the
+-- reward track's renown is 0, and LegacyMicroButtonMixin:UpdateMicroButton disables the micro button then.
+-- ToggleLegacyChallenges and ShowLegacyChallenge have no such check (and the window works fine at 0).
+function Live.LegacyLocked()
+	local level = C_MajorFactions and try(C_MajorFactions.GetCurrentRenownLevel, Data.REWARD_TRACK_FACTION_ID)
+	return level ~= nil and level <= 0
+end
+
+-- Opens Blizzard's Legacy panel (Y), on that challenge when an ID is given. Not in combat:
 -- opening Blizzard panels from addon code mid-fight risks spreading taint.
+-- 1.2: works at 0 Legacy points too (it used ToggleLegacySystemUI only, which does nothing then).
 function Live.OpenLegacyPanel(achievementID)
 	if InCombatLockdown and InCombatLockdown() then return false end
-	if type(ToggleLegacySystemUI) ~= "function" then return false end
-	if not (LegacySystemFrame and LegacySystemFrame:IsShown()) then try(ToggleLegacySystemUI) end
-	if achievementID and EventRegistry then
-		try(EventRegistry.TriggerEvent, EventRegistry, "Legacy.SelectPage", 2)
-		if AchievementFrame_SelectAchievement then try(AchievementFrame_SelectAchievement, achievementID, true) end
+	if achievementID and type(ShowLegacyChallenge) == "function" then
+		try(ShowLegacyChallenge, achievementID, false)
+		return true
+	end
+	if LegacySystemFrame and LegacySystemFrame:IsShown() then return true end
+	if not Live.LegacyLocked() and type(ToggleLegacySystemUI) == "function" then
+		try(ToggleLegacySystemUI)
+	elseif type(ToggleLegacyChallenges) == "function" then
+		try(ToggleLegacyChallenges)
+	else
+		return false
 	end
 	return true
+end
+
+-- 1.2 (idea: Legacy Unlock): Blizzard's own Legacy key binding and micro button open the window at 0 points too.
+-- House-rule exception the user made (2026-11-13): post-hooks only (hooksecurefunc), nothing of Blizzard's replaced;
+-- each hook does nothing unless the window is locked, the setting is on and we're out of combat. Installed once;
+-- the setting is read on every call, so switching it off needs no /reload. enabled() returns the setting.
+local unlockHooked = false
+-- report(fields), optional, gets { via, shown } once the window was opened that way (probe evidence).
+function Live.HookLegacyUnlock(enabled, report)
+	if unlockHooked or type(hooksecurefunc) ~= "function" then return end
+	unlockHooked = true
+	local function active() return enabled() and Live.LegacyLocked() and not (InCombatLockdown and InCombatLockdown()) end
+	if type(ToggleLegacySystemUI) == "function" and type(ToggleLegacyChallenges) == "function" then
+		-- the binding: Blizzard's toggle returned without doing anything, so toggle the window ourselves
+		try(hooksecurefunc, "ToggleLegacySystemUI", function()
+			if not active() then return end
+			try(ToggleLegacyChallenges)
+			if report then report({ via = "key binding or button", shown = LegacySystemFrame and LegacySystemFrame:IsShown() or false }) end
+		end)
+	end
+	local button = LegacyMicroButton
+	if button and type(button.UpdateMicroButton) == "function" then
+		-- the micro button disables itself while locked; enable it again after each of Blizzard's updates
+		try(hooksecurefunc, button, "UpdateMicroButton", function(self)
+			if not active() then return end
+			self:Enable()
+			self.disabledTooltip = nil
+			if LegacySystemFrame and LegacySystemFrame:IsShown() then self:SetPushed() else self:SetNormal() end
+		end)
+		if active() then try(button.UpdateMicroButton, button) end
+	end
 end
 
 -- Previews a reward (0.9): Blizzard's DressUpLink shows the tabard on the character, the pet and the mount in the

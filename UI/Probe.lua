@@ -1,4 +1,4 @@
--- 1.1 /yl probe: runs the in-game checks that don't need a person (research/19 and research/20 list them) and says
+-- 1.1 /yl probe: runs the in-game checks that don't need a person (archive/research/19 and archive/research/20 list them) and says
 -- which ones still do. Three kinds of result:
 --   pass / fail  checked now against the live client
 --   wait         evidence the addon collects while you play (a boss kill, a reset, a new point), not seen yet
@@ -17,7 +17,8 @@ Probe.APIS = {
 	"C_Traits.GetConfigIDByTreeID", "C_Traits.GetTreeCurrencyInfo", "C_Traits.ResetTree", "C_Traits.GetNodeInfo",
 	"C_MajorFactions.GetCurrentRenownLevel", "C_MajorFactions.GetRenownLevels",
 	"C_EncounterJournal.GetDungeonEntrancesForMap", "C_Map.GetBestMapForUnit", "C_Map.GetMapChildrenInfo",
-	"C_Texture.GetAtlasInfo", "ToggleLegacySystemUI", "DressUpLink", "EventRegistry.RegisterCallback",
+	"C_Texture.GetAtlasInfo", "ToggleLegacySystemUI", "ToggleLegacyChallenges", "ShowLegacyChallenge", "hooksecurefunc",
+	"LegacyMicroButton.UpdateMicroButton", "C_ClassTalents.GetActiveConfigID", "C_Traits.GetConfigInfo", "DressUpLink", "EventRegistry.RegisterCallback",
 	"C_Sound.PlaySound", "C_ChatInfo.SendChatMessage",
 }
 -- Blizzard art the addon draws (each has a fallback, so a missing one only looks worse).
@@ -242,6 +243,12 @@ local EVIDENCE = {
 	{ key = "encounterUnits", title = "Boss kills carry creature IDs",
 		ok = function(e) return true, string.format("Seen in %s.", e.place or "?") end,
 		todo = "Kill any boss in a dungeon." },
+	{ key = "wipe", title = "Trainer reset dialog (1.2)",
+		ok = function(e) return true, string.format("Type %s, cost %s. The reset check below says which type is Legacy.", tostring(e.kind), Probe.Coins(e.cost or 0)) end,
+		todo = "At your class trainer, pick the option to unlearn Legacy talents (you can cancel the dialog)." },
+	{ key = "unlock", title = "Legacy window opens at 0 points (1.2)",
+		ok = function(e) return e.shown, string.format("Opened by the %s; window shown: %s.", e.via or "?", tostring(e.shown)) end,
+		todo = "On a ruleset with 0 Legacy points (a new Hardcore character), press the Legacy key or the menu button." },
 	{ key = "encounterAsset", title = "Raid boss parts match the fight's ID",
 		ok = function(e) return e.match, string.format("Part asset %s, fight %s.", tostring(e.asset), tostring(e.encounterID)) end,
 		todo = "Kill a boss in Hyjal Summit (or another raid listed by fight)." },
@@ -271,10 +278,11 @@ local EVIDENCE = {
 		todo = "Earn a Legacy point." },
 	{ key = "reset", title = "What a reset costs",
 		ok = function(e)
-			return true, string.format("%s for %d ranks in %d tree(s). Your Legacy says %d gold a reset.",
-				Probe.Coins(e.cost or 0), e.ranks or 0, e.trees or 0, Data.RESET_COST_GOLD)
+			-- 1.2: a trainer reset should clear every tree (trees = all with ranks); kind = the dialog type learned
+			return true, string.format("%s for %d ranks in %d tree(s), dialog type %s. Your Legacy says %d gold and every tree.",
+				Probe.Coins(e.cost or 0), e.ranks or 0, e.trees or 0, tostring(e.kind), Data.RESET_COST_GOLD)
 		end,
-		todo = "Reset a tree in the Legacy panel and apply it (it costs gold)." },
+		todo = "Reset your Legacy perks at your class trainer (it costs gold)." },
 }
 
 local HAND = {

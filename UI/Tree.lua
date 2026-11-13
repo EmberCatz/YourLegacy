@@ -66,8 +66,8 @@ local function Same(a, b)
 end
 
 -- 1.1 reset warning: what a plan changes against the current ranks. Returns { learn = { {node, from, to} },
--- takeBack = { ... }, trees = { tree name with ranks taken back } }. Taking a rank back means resetting its tree in
--- Blizzard's Legacy panel, which costs gold (Data.RESET_COST_GOLD, forum reports 2026-11-10) and has no confirmation.
+-- takeBack = { ... }, trees = { tree name with ranks taken back } }. Taking a rank back needs a paid reset at the class
+-- trainer (Data.RESET_COST_GOLD, forum reports 2026-11-10/12).
 function ns.TreeDiff(plan, current, trees)
 	local out = { learn = {}, takeBack = {}, trees = {} }
 	if not (plan and current) then return out end
@@ -134,7 +134,7 @@ local function NodeTooltip(self)
 	local note = Data.PERK_NOTES[n.id]
 	if note then GameTooltip:AddLine(L[note], T.unpack(C.muted), true) end
 	if self.planned and self.planned < (self.current or 0) then
-		GameTooltip:AddLine(L["The plan takes ranks back here, which needs a reset of this tree."] .. P.RuleTag("reset"), T.unpack(C.warn), true)
+		GameTooltip:AddLine(L["The plan takes ranks back here, which needs a reset at your class trainer."] .. P.RuleTag("reset"), T.unpack(C.warn), true)
 	end
 	GameTooltip:AddLine(L["Left-click adds a rank to the plan, right-click removes one."], T.unpack(C.muted))
 	GameTooltip:Show()
@@ -541,6 +541,7 @@ local function BuildTree(page)
 	tree.cap:SetPoint("BOTTOMLEFT", tree.total, "BOTTOMRIGHT", 2, 1)
 	tree.summary = T.Text(body, T.F.body, C.muted)
 	tree.summary:SetPoint("LEFT", tree.cap, "RIGHT", 12, 0)
+	tree.summary:SetWordWrap(false)
 	-- 1.1: hover the summary for what the plan changes, perk by perk
 	tree.diffHit = CreateFrame("Frame", nil, body)
 	tree.diffHit:SetPoint("TOPLEFT", tree.summary, "TOPLEFT", -2, 2)
@@ -565,7 +566,10 @@ local function BuildTree(page)
 		if #diff.takeBack > 0 then
 			GameTooltip:AddLine(L["Take back"], T.unpack(C.head))
 			lines(diff.takeBack, C.warn)
-			GameTooltip:AddLine(string.format(L["Taking ranks back means resetting the tree in Blizzard's Legacy panel. Players report it costs %d gold and asks for no confirmation, so check before you click Reset."], Data.RESET_COST_GOLD), T.unpack(C.muted), true)
+			GameTooltip:AddLine(string.format(L["Taking ranks back needs a reset at your class trainer. It clears every rank in all three trees, Talented too, and players report it costs %d gold. Then learn the plan again in the Legacy panel."], Data.RESET_COST_GOLD), T.unpack(C.muted), true)
+			if (tree.deficit or 0) > 0 then
+				GameTooltip:AddLine(string.format(L["Below level 60 the trainer won't reset while Talented pays for spent class talents: unlearn %d class talent points there first."], tree.deficit), T.unpack(C.warn), true)
+			end
 		end
 		GameTooltip:Show()
 	end)
@@ -649,8 +653,14 @@ local function RefreshTree()
 		-- 1.1: the loudest complaint after launch is the 10g reset with no confirmation; say so before it happens
 		local back = 0
 		for _, d in ipairs(diff.takeBack) do back = back + d.from - d.to end
-		tree.summary:SetText(string.format(L["Takes back %d ranks: reset %s first (%d gold a reset)."], back,
-			table.concat(diff.trees, ", "), Data.RESET_COST_GOLD) .. P.RuleTag("reset"))
+		-- 1.2: a trainer reset clears every rank, not just the ones the plan drops; below 60 Talented can block it
+		tree.deficit = key == Live.CharacterKey() and P.TalentedDeficit(level, current[Data.TALENTED_NODE], Live.ClassTalentUnspent()) or 0
+		if tree.deficit > 0 then
+			tree.summary:SetText(string.format(L["Takes back %d ranks. Unlearn %d class talent points first."], back, tree.deficit) .. P.RuleTag("talentedReset"))
+		else
+			tree.summary:SetText(string.format(L["Takes back %d ranks: a trainer reset clears all %d (%d gold)."], back,
+				spent, Data.RESET_COST_GOLD) .. P.RuleTag("reset"))
+		end
 		tree.summary:SetTextColor(T.unpack(C.warn))
 	elseif not plan then
 		tree.summary:SetText(string.format(L["No plan for %s yet. Load a build or click perks."], who))
@@ -662,6 +672,9 @@ local function RefreshTree()
 		tree.summary:SetText(string.format(L["%d spent now, %d still to place."], spent, math.max(0, total - spent)))
 		tree.summary:SetTextColor(T.unpack(C.parch))
 	end
+	-- 1.2: a warning (dead perks, ranks taken back, Talented) takes the legend's room: in German it's too long to
+	-- sit beside it, and the legend only explains the arrow colours
+	tree.legend:SetShown(not (wasted > 0 or #diff.takeBack > 0))
 
 	-- the grid every tree shares, in the game's units
 	local minX, maxX, minY = math.huge, -math.huge, math.huge

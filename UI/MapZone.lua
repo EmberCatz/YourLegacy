@@ -1,4 +1,4 @@
--- 1.0 zone progress on the world map (research/19-feature-plan.md #8, the user's pick after map badges were
+-- 1.0 zone progress on the world map (archive/research/19-feature-plan.md #8, the user's pick after map badges were
 -- dropped). A banner on the map, only on maps with Legacy work: the Legacy points icon, the map's name and how far
 -- along it is as a percentage over Blizzard's profession bar; under it this character's exploration of the map,
 -- which other character has it all, and the dungeons and raids whose entrance is on the map, each with what's left

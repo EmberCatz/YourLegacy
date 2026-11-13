@@ -189,9 +189,8 @@ local function CreateCharacterCard(parent)
 			GameTooltip:AddLine(string.format(L["%s %d: %s"], P.PerkName(d.id), d.rank, L[d.why]), T.unpack(C.warn))
 		end
 		if self.deadTotal and self.deadTotal > 0 then
-			GameTooltip:AddLine(Data.PERK_RESET_IN_PANEL
-				and (string.format(L["Reset the tree in Blizzard's Legacy panel to spend them elsewhere (%d gold)."], Data.RESET_COST_GOLD) .. P.RuleTag("reset"))
-				or (L["These ranks no longer help at this level."] .. P.RuleTag("deadPerks")), T.unpack(C.muted), true)
+			GameTooltip:AddLine(string.format(L["Reset at your class trainer to spend them elsewhere (%d gold)."], Data.RESET_COST_GOLD)
+				.. P.RuleTag("reset"), T.unpack(C.muted), true)
 		end
 		for _, w in ipairs(self.warnings or {}) do GameTooltip:AddLine(P.OutlevelText(w), T.unpack(C.warn)) end
 		GameTooltip:AddLine(L["Click for gear and professions. Right-click to remove."], T.unpack(C.muted))

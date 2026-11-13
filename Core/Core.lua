@@ -29,6 +29,7 @@ local DEFAULTS = {
 		locked = false,      -- window can't be dragged
 		combatHide = true,   -- close the window when combat starts
 		announce = true,     -- chat line when a challenge is earned
+		unlockLegacy = true, -- 1.2: Blizzard's Legacy key binding and micro button work at 0 points (post-hooks)
 		-- 0.6
 		animations = true,   -- short fades on open, tab switch and selection
 		minimapIcon = {},    -- LibDBIcon's own table (hide, minimapPos) when that library is present
@@ -161,6 +162,29 @@ function Core:Evidence(key, fields)
 	self.db.evidence[key] = fields
 end
 
+-- 1.2: Blizzard's reset dialog at the trainer (CONFIRM_TALENT_WIPE cost, type; Blizzard_Game EventImplementation.lua
+-- shows ConfirmTalentWipeDialog). Class talents and Legacy perks share it; which type is Legacy isn't documented,
+-- so the type that came before a measured Legacy reset is learned (evidence "reset".kind). Says once what a Legacy
+-- reset clears and, below 60, whether Talented blocks it. Until the type is known the line starts with "If".
+function Core:OnTalentWipe(cost, kind)
+	if not self.db then return end
+	self.pendingWipe = { kind = kind, at = time() }
+	self:Evidence("wipe", { cost = cost, kind = kind })
+	local learned = self.db.evidence.reset and self.db.evidence.reset.kind
+	if learned ~= nil and learned ~= kind then return end
+	local trees, spent = Live.Trees()
+	if (spent or 0) == 0 then return end
+	local ranks = {}
+	for _, t in ipairs(trees) do for _, n in ipairs(t.nodes) do if n.rank > 0 then ranks[n.id] = n.rank end end end
+	local text = string.format(L["A Legacy reset clears all %d ranks, Talented too. Learn your plan again in the Legacy panel afterwards."], spent)
+	if learned == nil then text = string.format(L["If this is the Legacy reset: %s"], text) end
+	self:Print(text)
+	local deficit = ns.Pages.TalentedDeficit(UnitLevel("player"), ranks[Data.TALENTED_NODE], Live.ClassTalentUnspent())
+	if deficit > 0 then
+		self:Print(string.format(L["Below level 60 the trainer won't reset while Talented pays for spent class talents: unlearn %d class talent points there first."], deficit))
+	end
+end
+
 function Core:SetSetting(key, value)
 	if not self.db then return end
 	self.db.settings[key] = value
@@ -198,7 +222,10 @@ function Core:RecordCharacter(withProgress)
 		end
 		local trees = 0
 		for _ in pairs(lost) do trees = trees + 1 end
-		self:Evidence("reset", { cost = old.money - snap.money, ranks = old.spent - snap.spent, trees = trees })
+		-- 1.2: the trainer's dialog type just before it is the Legacy reset's (Core:OnTalentWipe learns it from this)
+		local wipe = self.pendingWipe
+		local kind = wipe and time() - wipe.at < 300 and wipe.kind or nil
+		self:Evidence("reset", { cost = old.money - snap.money, ranks = old.spent - snap.spent, trees = trees, kind = kind })
 	end
 	self.db.characters[key] = snap
 	-- the points of this ruleset, for characters of it the roster shows while you play the other one
@@ -374,6 +401,7 @@ local EVENTS = {
 	"ACHIEVEMENT_EARNED", "CRITERIA_UPDATE", "TRAIT_CONFIG_UPDATED", "MAJOR_FACTION_RENOWN_LEVEL_CHANGED",
 	"PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED",
 	"CONTENT_TRACKING_LIST_UPDATE", "TRACKED_ACHIEVEMENT_LIST_CHANGED", "ITEM_DATA_LOAD_RESULT", "PLAYER_DEAD",
+	"CONFIRM_TALENT_WIPE", -- 1.2: the trainer's reset dialog
 	"CRITERIA_EARNED", "PLAYER_EQUIPMENT_CHANGED", "PLAYER_ENTERING_WORLD", -- 0.9.1: gear changes and the gear once it has loaded reach the snapshot
 }
 for _, e in ipairs(EVENTS) do Core:RegisterEvent(e) end
@@ -392,12 +420,15 @@ Core:SetScript("OnEvent", function(self, event, arg1, ...)
 		if ns.Options then ns.Options:Register() end
 		if ns.Minimap then ns.Minimap:Create() end
 		if ns.MapZone then ns.MapZone:Register() end
+		Live.HookLegacyUnlock(function() return Core.db.settings.unlockLegacy end, function(f) Core:Evidence("unlock", f) end)
 	elseif event == "PLAYER_LOGOUT" then
 		self:RecordCharacter(true)
 	elseif event == "PLAYER_ENTERING_WORLD" then
 		-- arg1 = isInitialLogin: remind once after logging in, not after every loading screen
 		if arg1 then C_Timer.After(Core.REMIND_DELAY, function() Core:Remind() end) end
 		self:RequestRefresh()
+	elseif event == "CONFIRM_TALENT_WIPE" then
+		self:OnTalentWipe(arg1, ...)
 	elseif event == "CRITERIA_EARNED" then
 		-- a part of a challenge got done: read the progress again once the refresh settles
 		progressDue = true

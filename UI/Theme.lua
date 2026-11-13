@@ -1,7 +1,7 @@
--- Your Legacy's design system (0.8): native to Forever's own UI (research/15-v08-native-audit.md).
+-- Your Legacy's design system (0.8): native to Forever's own UI (archive/research/15-v08-native-audit.md).
 -- The window is Blizzard's PortraitFrameTemplate frame with side tabs; regions are Blizzard insets on the Legacy
 -- panel's leather ground; text is the client's Friz Quadrata, gold for headings and labels, white for values.
--- The 0.7 rules stay (research/14-v07-hallmark.md): every colour from T.C, every face from T.F, tables before cards,
+-- The 0.7 rules stay (archive/research/14-v07-hallmark.md): every colour from T.C, every face from T.F, tables before cards,
 -- no glows, motion only as state.
 local _, ns = ...
 

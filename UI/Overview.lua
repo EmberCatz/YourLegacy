@@ -1,6 +1,6 @@
 -- Overview (0.9): the points on the Legacy emblem (1.0; was Blizzard's shield), the reward track (click a reward to preview it), four
 -- figures, then "Closest to done" and "Sections" (a click opens that section's tab in Challenges).
--- Goal / Maybe / Skip is gone (research/17-v09-brief.md #8).
+-- Goal / Maybe / Skip is gone (archive/research/17-v09-brief.md #8).
 local _, ns = ...
 local T, UI, Live, Data, L, P = ns.Theme, ns.UI, ns.Live, ns.Data, ns.L, ns.Pages
 local C = T.C
@@ -166,6 +166,21 @@ local function BuildOverview(page)
 	end)
 end
 
+local function RefreshSections(challenges)
+	overview.sectionRows:Reset()
+	for i, g in ipairs(challenges.groups) do
+		local r = overview.sectionRows:Acquire()
+		r:SetPoint("TOPLEFT", 0, -(i - 1) * 36)
+		r.section = g.title
+		local ratio = g.total > 0 and g.done / g.total or 0
+		r.tile:SetIcon(g.items[1] and g.items[1].icon or "glyph:Star")
+		r.tile:SetState(ratio >= 1 and C.heat6 or C.rule, g.done == 0)
+		r.title:SetText(g.title)
+		r.value:SetText(string.format("%d / %d", g.done, g.total))
+		r.bar:SetHeatValue(ratio)
+	end
+end
+
 local function RefreshOverview()
 	local challenges = Live.Challenges()
 	local earned, max = Live.Earned(), Live.MaxAvailable()
@@ -216,6 +231,9 @@ local function RefreshOverview()
 	f3.label:SetText(L["Usable per character"])
 	f3.value:SetText(math.min(Data.SPEND_CAP, earned))
 	f3.unit:SetText("/" .. Data.SPEND_CAP)
+	-- 1.2 (LegacyManager's "+N only for the Progress Track"): points past the cap still move the reward track
+	local extra = earned - Data.SPEND_CAP
+	f3.note:SetText(extra > 0 and string.format(L["+%d only count for the reward track"], extra) or "")
 	f4.label:SetText(L["Next reward"])
 	if nextReward then
 		f4.value:SetText(nextReward.name)
@@ -258,7 +276,15 @@ local function RefreshOverview()
 	end)
 	overview.rows:Reset()
 	overview.empty:SetShown(#open == 0)
-	overview.close.hint:SetText(#open > 0 and string.format(L["%d under way"], #open) or "")
+	-- 1.2: the hint also says how far the next reward is (the user's pick over a separate "Next reward" list,
+	-- which ranked the same challenges the same way)
+	local hint = #open > 0 and string.format(L["%d under way"], #open) or ""
+	if nextReward then
+		local togo = nextReward.level - earned
+		local reward = togo == 1 and L["1 point to the next reward"] or string.format(L["%d points to the next reward"], togo)
+		hint = hint == "" and reward or string.format(L["%s, %s"], hint, reward)
+	end
+	overview.close.hint:SetText(hint)
 	for i = 1, math.min(5, #open) do
 		local r = overview.rows:Acquire()
 		r:SetPoint("TOPLEFT", 0, -(i - 1) * 38)
@@ -268,20 +294,7 @@ local function RefreshOverview()
 			r.line:Hide()
 		end
 	end
-
-	-- Sections
-	overview.sectionRows:Reset()
-	for i, g in ipairs(challenges.groups) do
-		local r = overview.sectionRows:Acquire()
-		r:SetPoint("TOPLEFT", 0, -(i - 1) * 36)
-		r.section = g.title
-		local ratio = g.total > 0 and g.done / g.total or 0
-		r.tile:SetIcon(g.items[1] and g.items[1].icon or "glyph:Star")
-		r.tile:SetState(ratio >= 1 and C.heat6 or C.rule, g.done == 0)
-		r.title:SetText(g.title)
-		r.value:SetText(string.format("%d / %d", g.done, g.total))
-		r.bar:SetHeatValue(ratio)
-	end
+	RefreshSections(challenges)
 end
 
 UI:RegisterPage("overview", L["Overview"], BuildOverview, RefreshOverview)

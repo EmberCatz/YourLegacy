@@ -23,7 +23,7 @@ function P.RuleTag(key)
 	return word and (" " .. T.Hex(C.muted) .. word .. "|r") or ""
 end
 
--- Feature 1: how a challenge counts, only where its data shows it (research/17-v09-feedback-features.md):
+-- Feature 1: how a challenge counts, only where its data shows it (archive/research/17-v09-feedback-features.md):
 -- several parts → all of them; no parts and a number in the description → one character reaches it.
 -- Anything else (PvP ranks, a single quest or week) gets no line. Returns the line and its rule (Data.RULES).
 function P.CreditRule(item, criteria)
@@ -338,6 +338,17 @@ function P.CreateChallengeRow(parent, width, withDescription)
 end
 
 -- 1.0: what a character is for (Data.ROLES; nil = alt). Ignore hides its roster card behind "Show ignored".
+-- 1.2 Talented guard (rule "talentedReset", reported). A trainer reset takes Talented away too, and with it the class
+-- talent points it gave (talents from level 10 - rank instead of 10). Below 60, if more of those are spent than the
+-- character has unspent, the trainer refuses until the class talents are unlearned. Returns the missing points (0 = fine).
+function P.TalentedDeficit(level, talentedRank, unspent)
+	level, talentedRank = level or 1, talentedRank or 0
+	if level >= 60 or talentedRank <= 0 then return 0 end
+	local now = math.min(Data.CLASS_TALENT_MAX, math.max(0, level - 9 + talentedRank))
+	local after = math.min(Data.CLASS_TALENT_MAX, math.max(0, level - 9))
+	return math.max(0, now - after - (unspent or 0))
+end
+
 function P.Role(key) return db().roles[key] or "alt" end
 
 -- The game's class icon atlas (classicon-warlock) when the client has it.

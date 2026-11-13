@@ -13,7 +13,7 @@ Open it with `/yl`, the minimap button, the addon compartment or a keybinding.
 - Your Legacy points on the Legacy emblem, and the reward track with the toy, pet, tabard and mount. Click a reward to preview it.
 - When you've unlocked a reward but not picked it up yet, it tells you it's waiting at Innkeeper Wiley in Ratchet.
 - Your Normal and Hardcore pools, how many points one character can spend (16), and your next reward.
-- The challenges closest to done, and every section with its progress. Click a section to jump to it.
+- The challenges closest to done (with how far the next reward is), and every section with its progress. Click a section to jump to it.
 
 ## Challenges
 
@@ -55,10 +55,10 @@ Open it with `/yl`, the minimap button, the addon compartment or a keybinding.
 - Start from a preset (Leveling, Crafting, Open world, Hardcore), copy the ranks you have now, or save your own builds.
 - Share a plan as text and import someone else's from the My builds list.
 - The tab shows how many points you can still spend.
-- A plan that takes ranks back warns you first: undoing ranks needs a reset in Blizzard's panel, which costs gold. Hover the line for what the plan learns and takes back.
+- A plan that takes ranks back warns you first: undoing ranks needs a paid reset at your class trainer, and the reset clears every rank. Below level 60 it also tells you when Talented means unlearning class talents first. Hover the line for what the plan learns and takes back.
 - Perks that raise a chance say so in their tooltip.
 - The 16-point cap is always in view.
-- A button opens Blizzard's Legacy panel, which is where perks are learned.
+- A button opens Blizzard's Legacy panel, which is where perks are learned. It works before your first Legacy point too, and so do the game's own Legacy key and menu button (you can switch that off in the options).
 
 ## Dungeons, raids and the world map
 

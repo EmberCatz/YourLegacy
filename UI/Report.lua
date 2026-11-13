@@ -1,4 +1,4 @@
--- 1.1 /yl report [challenge]: a plain-text report to paste into a bug report (research/20-addon-research-nov10.md #5).
+-- 1.1 /yl report [challenge]: a plain-text report to paste into a bug report (archive/research/20-addon-research-nov10.md #5).
 -- Versions, the ruleset, points, the settings, the unconfirmed rules as they're set, other Legacy and map addons
 -- that change what players see, and, with a name, every part of that challenge as the game reports it. Rules and
 -- criteria keep changing after launch (Tirisfal Glades gained Undercity), so this is what a report needs.
@@ -44,7 +44,7 @@ function R.Text(query)
 	local bits = {}
 	for _, k in ipairs(keys) do bits[#bits + 1] = k .. "=" .. tostring(db.settings[k]) end
 	add("Settings: " .. table.concat(bits, " "))
-	add("Rules (" .. Data.RULES_DATE .. "): reset in panel " .. tostring(Data.PERK_RESET_IN_PANEL) .. ", reset cost "
+	add("Rules (" .. Data.RULES_DATE .. "): reset cost "
 		.. Data.RESET_COST_GOLD .. "g, outlevel warning " .. tostring(Data.OUTLEVEL_WARNING))
 	local loaded = {}
 	for _, name in ipairs(R.NEIGHBOURS) do if Live.AddOnLoaded(name) then loaded[#loaded + 1] = name end end

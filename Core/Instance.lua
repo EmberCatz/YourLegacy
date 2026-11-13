@@ -1,6 +1,6 @@
--- 1.0 instance helper (research/19-feature-plan.md #7). Inside a dungeon or raid that counts toward a Legacy challenge,
+-- 1.0 instance helper (archive/research/19-feature-plan.md #7). Inside a dungeon or raid that counts toward a Legacy challenge,
 -- say which challenge and what's still missing there; after a boss dies, say whether the kill counted. Answers the
--- "killed every boss, no credit" reports (Drowned City, research/18-competitive-research.md).
+-- "killed every boss, no credit" reports (Drowned City, archive/research/18-competitive-research.md).
 -- A dungeon's part is one creature kill (the criterion's assetID). ENCOUNTER_END lists the bosses of the fight with
 -- creatureID and creatureName (EncounterInfoDocumentation, Forever), so the helper learns which boss gives the credit
 -- (db.bossNames) and notices a kill of that boss that didn't count.
