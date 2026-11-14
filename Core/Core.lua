@@ -22,6 +22,7 @@ local DEFAULTS = {
 	bossNames = {},  -- 1.0: [creatureID] = name, learned from ENCOUNTER_END for creatures a dungeon's credit needs
 	evidence = {},   -- 1.1: what the probe (/yl probe) learned while you played: [key] = { date, ... } (UI/Probe.lua)
 	probe = {},      -- 1.1: the last probe run, for reading from SavedVariables after /reload (devenv/probe.py)
+	almost = { said = {}, seeded = {} }, -- 1.3: said = { [achievementID] = true } got the almost-done line; seeded[ruleset] = first check done
 	knownChallenges = {}, -- 1.3: [normal | hardcore] = { build, ids = { [achievementID] = name } }, the list at the last login
 	settings = {
 		scale = 1,           -- window scale
@@ -43,6 +44,7 @@ local DEFAULTS = {
 		announceGuild = false, -- also post earned challenges to guild chat
 		remindUnspent = true,  -- chat line at login when Legacy points are unspent
 		remindRewards = true,  -- chat line at login when an unlocked reward waits at Innkeeper Wiley
+		announceAlmost = true,  -- 1.3: chat line once when a challenge is nearly finished
 		announceChanges = true, -- 1.3: chat line at login when the game lists new Legacy challenges or drops some
 		instanceHelper = true, -- chat lines inside a dungeon or raid that counts toward a challenge (Core/Instance.lua)
 		mapZone = true,        -- Legacy progress of the zone open on the world map (UI/MapZone.lua)
@@ -384,6 +386,48 @@ function Core:ChallengeChanges()
 	end
 end
 
+-- 1.3: one chat line when a challenge is nearly finished: 90% there, or one part left of three or more. Once per
+-- challenge, ever. The first check on a ruleset only notes what is already that close (installing or updating the
+-- addon shouldn't fill the chat); Closest to done on the Overview lists those.
+Core.ALMOST_RATIO = 0.9
+function Core.IsAlmostDone(item)
+	if item.completed or (item.ratio or 0) <= 0 then return false end
+	if item.ratio >= Core.ALMOST_RATIO then return true end
+	local have, need = (item.detail or ""):match("^(%d+) / (%d+)$")
+	have, need = tonumber(have), tonumber(need)
+	return need ~= nil and need >= 3 and have == need - 1 and item.who == nil -- parts, not levels or skill
+end
+
+function Core:AlmostDone()
+	if not self.db or Live.demo then return end
+	local almost = self.db.almost
+	local ruleset = Live.IsHardcore() and "hardcore" or "normal"
+	local seeding = not almost.seeded[ruleset]
+	local fresh = {}
+	for _, g in ipairs(Live.Challenges().groups) do
+		for _, item in ipairs(g.items) do
+			if not almost.said[item.id] and Core.IsAlmostDone(item) then
+				almost.said[item.id] = true
+				fresh[#fresh + 1] = item
+			end
+		end
+	end
+	almost.seeded[ruleset] = true
+	if seeding or #fresh == 0 then return end
+	table.sort(fresh, function(a, b) return a.id < b.id end)
+	self:Evidence("almostDone", { id = fresh[1].id, detail = fresh[1].detail, ratio = fresh[1].ratio, count = #fresh })
+	if not self:Setting("announceAlmost") then return end
+	local byID = {}
+	for _, item in ipairs(fresh) do byID[item.id] = item end
+	local ids = {}
+	for i, item in ipairs(fresh) do ids[i] = item.id end
+	self:Print(string.format(L["Almost done: %s"], NameList(ids, function(id)
+		local item = byID[id]
+		local name = Live.AchievementLink(id) or item.name or tostring(id)
+		return item.detail and string.format("%s (%s)", name, item.detail) or name
+	end)))
+end
+
 -- Once a session, a few seconds after the first login (the trees and collections have loaded by then).
 local reminded = false
 function Core:Remind()
@@ -444,6 +488,7 @@ function Core:RequestRefresh()
 			lastRecord = now
 			progressDue, recordDue = false, false
 		end
+		Core:AlmostDone()
 		if ns.UI then ns.UI:Refresh() end
 		if ns.Minimap and ns.Minimap.UpdateText then ns.Minimap:UpdateText() end
 		if ns.MapZone then ns.MapZone:Refresh() end

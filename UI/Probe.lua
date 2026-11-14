@@ -279,6 +279,12 @@ local EVIDENCE = {
 				tostring(e.ruleset), tostring(e.count), tostring(e.build), tostring(e.from or "-"), tostring(e.added), tostring(e.removed))
 		end,
 		todo = "Log in twice (the first login only saves the list)." },
+	{ key = "almostDone", title = "Almost-done line (1.3)",
+		ok = function(e)
+			return (e.ratio or 0) > 0, string.format("Challenge %s at %s (%d%%), %s at once.", tostring(e.id), tostring(e.detail or "?"),
+				math.floor((e.ratio or 0) * 100), tostring(e.count))
+		end,
+		todo = "Play until a challenge is 90% done or has one part left." },
 	{ key = "renown", title = "New point event",
 		ok = function(e) return (e.new or 0) > (e.old or 0), string.format("Went from %s to %s.", tostring(e.old), tostring(e.new)) end,
 		todo = "Earn a Legacy point." },
