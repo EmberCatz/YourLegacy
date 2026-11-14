@@ -19,7 +19,7 @@ Probe.APIS = {
 	"C_EncounterJournal.GetDungeonEntrancesForMap", "C_Map.GetBestMapForUnit", "C_Map.GetMapChildrenInfo",
 	"C_Texture.GetAtlasInfo", "ToggleLegacySystemUI", "ToggleLegacyChallenges", "ShowLegacyChallenge", "hooksecurefunc",
 	"LegacyMicroButton.UpdateMicroButton", "C_ClassTalents.GetActiveConfigID", "C_Traits.GetConfigInfo", "DressUpLink", "EventRegistry.RegisterCallback",
-	"C_Sound.PlaySound", "C_ChatInfo.SendChatMessage", "IsInRaid",
+	"C_Sound.PlaySound", "C_ChatInfo.SendChatMessage", "IsInRaid", "IsResting", "GetXPExhaustion",
 }
 -- Blizzard art the addon draws (each has a fallback, so a missing one only looks worse).
 Probe.ATLASES = {
@@ -279,6 +279,14 @@ local EVIDENCE = {
 				tostring(e.ruleset), tostring(e.count), tostring(e.build), tostring(e.from or "-"), tostring(e.added), tostring(e.removed))
 		end,
 		todo = "Log in twice (the first login only saves the list)." },
+	{ key = "rested", title = "Rested estimate vs the game (1.3)",
+		ok = function(e)
+			local err = (e.actual or 0) - (e.estimate or 0)
+			return math.abs(err) <= math.max(50, (e.actual or 0) * 0.1), string.format(
+				"After %s h %s: estimated %s, the game said %s (from %s; Well Rested %s, correction %s).", tostring(e.hours),
+				e.resting and "resting" or "outside", tostring(e.estimate), tostring(e.actual), tostring(e.before), tostring(e.rank), tostring(e.scale))
+		end,
+		todo = "Log out a character below 60, wait an hour or more, log it in again." },
 	{ key = "raidBuild", title = "Raid build check (1.3)",
 		ok = function(e) return true, string.format("Joined a raid; %d rank(s) from \"%s\".", e.diff or 0, tostring(e.name)) end,
 		todo = "Mark a build for raids in My builds (Legacy Tree page), then join a raid group." },

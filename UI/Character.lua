@@ -387,9 +387,13 @@ local function RefreshCharacter(f)
 
 	local xp, xpMax = ch.xp or 0, ch.xpMax or 0
 	local maxLevel = (ch.level or 1) >= 60
-	f.xpLabel:SetText(maxLevel and L["Maximum level"] or (xpMax > 0 and string.format(L["Level %d: %d / %d XP, %d rested"], ch.level or 1, xp, xpMax, ch.rested or 0) or L["Experience unknown"]))
+	-- 1.3: offline characters show the pool grown since they logged out (estimated, "~")
+	local r = ns.Core:Rested(f.key, ch)
+	local rested = r and math.floor(r.value) or (ch.rested or 0)
+	local restedFmt = (r and r.estimated) and L["Level %d: %d / %d XP, ~%d rested"] or L["Level %d: %d / %d XP, %d rested"]
+	f.xpLabel:SetText(maxLevel and L["Maximum level"] or (xpMax > 0 and string.format(restedFmt, ch.level or 1, xp, xpMax, rested) or L["Experience unknown"]))
 	f.xp:SetValue(maxLevel and 1 or (xpMax > 0 and xp / xpMax or 0))
-	local restRatio = (not maxLevel and xpMax > 0) and math.min(1, (xp + (ch.rested or 0)) / xpMax) or 0
+	local restRatio = (not maxLevel and xpMax > 0) and math.min(1, (xp + rested) / xpMax) or 0
 	f.rested:SetWidth(math.max(0.01, f.xp.width * restRatio))
 	f.rested:SetShown(restRatio > 0)
 

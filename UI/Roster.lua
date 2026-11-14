@@ -158,9 +158,12 @@ local function CreateCharacterCard(parent)
 	card.seen = T.Text(box, T.F.small, C.muted, "RIGHT")
 	card.seen:SetPoint("BOTTOMRIGHT", -14, 10)
 	-- 0.9: a dungeon bracket about to be outleveled (only while Data.OUTLEVEL_WARNING is on)
+	-- 1.3: rested XP, right end of the row above the footer (the "Next:" line has no room for it in German)
+	card.rested = T.Text(box, T.F.small, C.ink2, "RIGHT")
+	card.rested:SetPoint("BOTTOMRIGHT", -14, 34)
 	card.warn = T.Text(box, T.F.small, C.warn)
 	card.warn:SetPoint("BOTTOMLEFT", 14, 34)
-	card.warn:SetPoint("RIGHT", -14, 0)
+	card.warn:SetPoint("RIGHT", card.rested, "LEFT", -8, 0)
 	card.warn:SetWordWrap(false)
 	function card:Layout(width)
 		self:SetWidth(width)
@@ -193,6 +196,7 @@ local function CreateCharacterCard(parent)
 				.. P.RuleTag("reset"), T.unpack(C.muted), true)
 		end
 		for _, w in ipairs(self.warnings or {}) do GameTooltip:AddLine(P.OutlevelText(w), T.unpack(C.warn)) end
+		for i, line in ipairs(self.restedLines or {}) do GameTooltip:AddLine(line, T.unpack(i == 1 and C.ink2 or C.muted)) end
 		GameTooltip:AddLine(L["Click for gear and professions. Right-click to remove."], T.unpack(C.muted))
 		GameTooltip:Show()
 	end
@@ -387,6 +391,10 @@ local function FillCard(card, entry)
 	card.level:SetText(level)
 	card.levelBar:SetHeatValue(level / 60)
 	card.levelNext:SetText(NextLevelGoal(level, token))
+	local live = entry.key == Live.CharacterKey()
+	local rested = ns.Core:Rested(entry.key, ch)
+	card.rested:SetText(P.RestedShort(rested))
+	card.restedLines = P.RestedLines(rested, ch.resting, live)
 	local primary = {}
 	for _, p in ipairs(ch.professions or {}) do
 		if (p.slot or 9) <= 2 then primary[#primary + 1] = p end
@@ -430,7 +438,6 @@ local function FillCard(card, entry)
 	card.perks:SetTextColor(T.unpack(card.deadTotal > 0 and C.warn or C.ink2))
 	card.warnings = P.OutlevelWarnings(level)
 	card.warn:SetText(card.warnings[1] and P.OutlevelText(card.warnings[1]) or "")
-	local live = entry.key == Live.CharacterKey()
 	card.seen:SetText(live and L["Playing now"] or (ch.seen and ch.seen > 0 and date("%Y-%m-%d", ch.seen) or ""))
 end
 

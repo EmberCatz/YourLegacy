@@ -17,6 +17,44 @@ end
 
 -- 1.0: how sure the ledger is of a rule (Data.RULES), as a muted suffix after the rule's line. Confirmed rules get none.
 local STATUS_WORD = { reported = L["(reported)"], unchecked = L["(unchecked)"] }
+-- 1.3: hours as "40 minutes", "5 hours", "3 days" (rounded; rested XP is an estimate anyway)
+function P.Duration(hours)
+	if hours < 1 then return string.format(L["%d minutes"], math.max(1, math.floor(hours * 60 + 0.5))) end
+	if hours < 48 then
+		local h = math.floor(hours + 0.5)
+		return h == 1 and L["1 hour"] or string.format(L["%d hours"], h)
+	end
+	return string.format(L["%d days"], math.floor(hours / 24 + 0.5))
+end
+
+-- 1.3: short rested text for a roster card ("~120% rested", "Fully rested") and the tooltip lines.
+function P.RestedShort(r)
+	if not r then return "" end
+	if r.full then return (r.estimated and "~" or "") .. L["Fully rested"] end
+	if r.pct <= 0 then return "" end
+	return string.format(r.estimated and L["~%d%% rested"] or L["%d%% rested"], r.pct)
+end
+
+function P.RestedLines(r, resting, live)
+	if not r then return {} end
+	local out = { string.format(r.estimated and L["Rested: about %d XP, %d%% of a level"] or L["Rested: %d XP, %d%% of a level"],
+		math.floor(r.value), r.pct) }
+	if r.estimated then
+		out[#out + 1] = string.format(resting and L["Estimated from %s logged out in an inn or city."]
+			or L["Estimated from %s logged out outside an inn or city."], P.Duration(r.hours))
+	end
+	if r.full then out[#out + 1] = L["The pool is full."]
+	elseif r.toFull then
+		out[#out + 1] = string.format(live and L["Full in about %s if you log out here."] or L["Full in about %s."], P.Duration(r.toFull))
+	end
+	if r.rank > 0 then
+		out[#out + 1] = string.format(L["%s %d: +%d%% rate and cap."], P.PerkName(Data.WELL_RESTED_NODE), r.rank,
+			math.floor(r.rank * Data.WELL_RESTED_PER_RANK * 100 + 0.5))
+	end
+	out[#out] = out[#out] .. P.RuleTag("rested")
+	return out
+end
+
 function P.RuleTag(key)
 	local rule = Data.RULE_BY_KEY[key]
 	local word = rule and STATUS_WORD[rule.status]

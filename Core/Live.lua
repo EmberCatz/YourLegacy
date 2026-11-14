@@ -675,6 +675,9 @@ function Live.ClientInfo()
 	}
 end
 
+-- 1.3 rested XP now (nil before the game has it)
+function Live.RestedXP() return try(GetXPExhaustion) end
+
 -- 1.3 raid build warning
 function Live.InRaid() return try(IsInRaid) and true or false end
 
@@ -1054,6 +1057,7 @@ function Live.Snapshot()
 		money = try(GetMoney) or 0, zone = try(GetRealZoneText) or "", guild = try(GetGuildInfo, "player"),
 		itemLevel = select(2, try(GetAverageItemLevel)) or try(GetAverageItemLevel),
 		xp = try(UnitXP, "player"), xpMax = try(UnitXPMax, "player"), rested = try(GetXPExhaustion),
+		resting = try(IsResting) and true or false, -- 1.3: decides the offline rested rate
 	}
 end
 

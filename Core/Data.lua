@@ -130,6 +130,14 @@ Data.PRESET_NOTES = {
 ---------------------------------------------------------------- 0.9: from player feedback (archive/research/17-v09-feedback-features.md)
 -- Character level cap on Forever (the class challenges' last milestone).
 Data.MAX_LEVEL = 60
+-- 1.3 rested XP while logged out (Classic's rules; Well Rested per its description, +20% rate and cap at rank 5).
+-- UNVERIFIED on Forever: every number here. Each login measures the estimate against the game (Core:MeasureRested,
+-- evidence "rested") and corrects the rate (db.rested). Rule "rested" in Data.RULES.
+Data.RESTED_PER_8H = 0.05        -- share of a level's XP per 8 hours, logged out in an inn or city
+Data.RESTED_OUTSIDE = 0.25       -- the share of that rate when logged out anywhere else
+Data.RESTED_CAP = 1.5            -- the pool holds up to 1.5 levels
+Data.WELL_RESTED_NODE = 110301   -- research/addon-notes.md
+Data.WELL_RESTED_PER_RANK = 0.04 -- added to both the rate and the cap, per rank
 
 -- Perks whose ranks stop helping at a character level, keyed by node ID. Sources: the perk texts in
 -- archive/research/01-legacy-system-reference.md (perk trees table). Nothing else in the three trees is level-bound by its text.
@@ -141,7 +149,7 @@ Data.DEAD_PERKS = {
 -- Options > How Legacy works). confirmed = the game or Blizzard shows it; reported = guides and players say so,
 -- not yet proven in game; unchecked = nobody has tested it. Update a status (and RULES_DATE) when an in-game
 -- check settles it (archive/research/17-v09-feedback-features.md has the checklist).
-Data.RULES_DATE = "2026-11-13"
+Data.RULES_DATE = "2026-11-14"
 Data.RULES = {
 	{ key = "once", status = "confirmed", text = "A challenge is earned once for the whole account.",
 		source = "Every challenge carries the game's account flag." },
@@ -163,6 +171,8 @@ Data.RULES = {
 		source = "Guides. Hardcore isn't out yet." },
 	{ key = "talentedReset", status = "reported", text = "Below level 60 the trainer won't reset Legacy perks while Talented's extra class talent points are spent. Unlearn class talents first.",
 		source = "LegacyManager's notes (2026-11-12). Not tested in game yet." },
+	{ key = "rested", status = "reported", text = "Logged out, rested XP grows by 5% of a level every 8 hours in an inn or city, a quarter of that elsewhere, up to 1.5 levels. Well Rested adds 4% per rank to the rate and the cap.",
+		source = "Classic's rules; Well Rested from its description. Your Legacy measures it at each login and adjusts." },
 	{ key = "outlevel", status = "unchecked", text = "A dungeon cleared above its bracket's top level may not count.",
 		source = "Nobody has tested it, so Your Legacy doesn't warn about it yet." },
 }

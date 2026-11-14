@@ -23,6 +23,7 @@ local DEFAULTS = {
 	evidence = {},   -- 1.1: what the probe (/yl probe) learned while you played: [key] = { date, ... } (UI/Probe.lua)
 	probe = {},      -- 1.1: the last probe run, for reading from SavedVariables after /reload (devenv/probe.py)
 	almost = { said = {}, seeded = {} }, -- 1.3: said = { [achievementID] = true } got the almost-done line; seeded[ruleset] = first check done
+	rested = { inn = 1, outside = 1 }, -- 1.3: learned correction of the offline rested rate, per where the character logged out
 	knownChallenges = {}, -- 1.3: [normal | hardcore] = { build, ids = { [achievementID] = name } }, the list at the last login
 	settings = {
 		scale = 1,           -- window scale
@@ -429,6 +430,60 @@ function Core:AlmostDone()
 	end)))
 end
 
+-- 1.3: a character's rested XP. With `now`, the pool grown since the snapshot (`seen`, the logout) at the offline
+-- rate for where it logged out; without, the snapshot as it is (the character being played). `scale` is the learned
+-- correction (db.rested). nil at level 60, without XP data, or for snapshots older than 1.3 (no `resting`).
+-- Returns value, pct (of a level), cap, full, estimated, hours (offline), perHour, toFull (hours), rank (Well Rested).
+function Core.RestedNow(ch, now, scale)
+	if type(ch) ~= "table" then return nil end
+	local xpMax = tonumber(ch.xpMax) or 0
+	if (ch.level or 1) >= Data.MAX_LEVEL or xpMax <= 0 then return nil end
+	local rank = 0
+	for id, r in pairs(ch.perks or {}) do if tonumber(id) == Data.WELL_RESTED_NODE then rank = tonumber(r) or 0 end end
+	local mult = 1 + Data.WELL_RESTED_PER_RANK * rank
+	local cap = math.floor(xpMax * Data.RESTED_CAP * mult)
+	local out = { rank = rank, cap = cap, value = math.min(tonumber(ch.rested) or 0, cap), hours = 0 }
+	if ch.resting ~= nil then
+		out.perHour = xpMax * Data.RESTED_PER_8H / 8 * mult * (ch.resting and 1 or Data.RESTED_OUTSIDE) * (scale or 1)
+		if now and (ch.seen or 0) > 0 and now > ch.seen then
+			out.hours = (now - ch.seen) / 3600
+			out.value = math.min(cap, out.value + out.perHour * out.hours)
+			out.estimated = true
+		end
+	end
+	out.pct = math.floor(out.value / xpMax * 100 + 0.5)
+	out.full = out.value >= cap
+	if out.perHour and not out.full then out.toFull = (cap - out.value) / out.perHour end
+	return out
+end
+
+-- The rested XP to show for a roster entry: the live pool for the character being played, else the estimate.
+function Core:Rested(key, ch)
+	local live = key == Live.CharacterKey()
+	local scale = self.db and self.db.rested[ch and ch.resting and "inn" or "outside"]
+	return Core.RestedNow(ch, not live and time() or nil, scale)
+end
+
+-- At login, before the snapshot is replaced: the estimate from the last logout against the game's real pool. Kept as
+-- evidence; logins that didn't reach the cap (it hides the rate) move the learned correction halfway to what was seen.
+function Core:MeasureRested()
+	if not self.db or Live.demo then return end
+	local old = self.db.characters[Live.CharacterKey()]
+	local actual = Live.RestedXP()
+	if type(old) ~= "table" or old.resting == nil or actual == nil or (old.level or 0) ~= Live.Level() then return end
+	local state = old.resting and "inn" or "outside"
+	local scale = self.db.rested[state]
+	local est = Core.RestedNow(old, time(), scale)
+	if not est or not est.estimated or est.hours < 1 then return end
+	local before = math.min(tonumber(old.rested) or 0, est.cap)
+	self:Evidence("rested", { estimate = math.floor(est.value), actual = actual, before = before, resting = old.resting,
+		hours = math.floor(est.hours * 10 + 0.5) / 10, rank = est.rank, scale = scale })
+	local predicted, gained = est.value - before, actual - before
+	if est.full or actual >= est.cap or predicted <= 0 or gained < 0 then return end
+	local seen = scale * gained / predicted
+	self.db.rested[state] = math.max(0.25, math.min(4, (scale + seen) / 2))
+end
+
 -- 1.3: the saved build marked for raids (My builds on the Legacy Tree page), at most one.
 function Core:RaidBuild()
 	for i, b in ipairs(self.db and self.db.builds or {}) do
@@ -556,6 +611,7 @@ Core:SetScript("OnEvent", function(self, event, arg1, ...)
 			self.db = YourLegacyDB
 		end
 	elseif event == "PLAYER_LOGIN" then
+		self:MeasureRested() -- reads the last logout's snapshot, so before it's replaced
 		self:RecordCharacter(true)
 		if ns.Options then ns.Options:Register() end
 		if ns.Minimap then ns.Minimap:Create() end
