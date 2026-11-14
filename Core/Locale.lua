@@ -359,6 +359,16 @@ ns.LOCALES.deDE = {
 	["A chat line at login when a reward waits for you at Innkeeper Wiley in Ratchet."] = "Eine Chatzeile beim Einloggen, wenn bei Gastwirt Wiley in Ratschet eine Belohnung wartet.",
 	["You have 1 Legacy point to spend in the Legacy panel."] = "Du hast 1 Vermächtnispunkt, den du im Vermächtnisfenster ausgeben kannst.",
 	["You have %d Legacy points to spend in the Legacy panel."] = "Du hast %d Vermächtnispunkte, die du im Vermächtnisfenster ausgeben kannst.",
+	-- 1.3: mark all seen
+	["Mark all as seen"] = "Alle als gesehen markieren",
+	["Mark 1 new as seen"] = "1 neue als gesehen markieren",
+	["Mark %d new as seen"] = "%d neue als gesehen markieren",
+	["Blizzard's Legacy panel marks a challenge new when you earn it, until you open its category. This clears those marks for this character."] = "Blizzards Vermächtnisfenster markiert eine Herausforderung als neu, wenn du sie abschließt, bis du ihre Kategorie öffnest. Das hier entfernt diese Markierungen für diesen Charakter.",
+	["Not in combat. Try again after the fight."] = "Nicht im Kampf. Versuch es nach dem Kampf noch einmal.",
+	["Blizzard's Legacy panel isn't loaded."] = "Blizzards Vermächtnisfenster ist nicht geladen.",
+	["No new markers to clear."] = "Keine neuen Markierungen zu entfernen.",
+	["Cleared 1 new marker in the Legacy panel."] = "1 Neu-Markierung im Vermächtnisfenster entfernt.",
+	["Cleared %d new markers in the Legacy panel."] = "%d Neu-Markierungen im Vermächtnisfenster entfernt.",
 	-- 1.3: last session
 	["Last session"] = "Letzte Sitzung",
 	["A chat line at login with the Legacy points and challenge parts your last session earned."] = "Eine Chatzeile beim Einloggen mit den Vermächtnispunkten und Herausforderungsteilen deiner letzten Sitzung.",

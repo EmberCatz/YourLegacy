@@ -676,6 +676,32 @@ function Live.ClientInfo()
 	}
 end
 
+-- 1.3 step 7 (the user's call, 2026-11-14): Blizzard marks a challenge "new" when it's earned and clears the mark
+-- when its category is opened in the Legacy panel (Blizzard_LegacyChallengeTracker: LegacyChallengesUnviewed,
+-- saved per character, = { [achievementID] = categoryID }). We only read that table; clearing goes through
+-- Blizzard's own LegacyChallengeViewedUtil.MarkCategoryViewed, so its cache and icons stay in step. Out of combat only.
+function Live.Unviewed()
+	local t = rawget(_G, "LegacyChallengesUnviewed")
+	local n = 0
+	if type(t) == "table" then for _ in pairs(t) do n = n + 1 end end
+	return n
+end
+
+function Live.CanMarkViewed()
+	local util = rawget(_G, "LegacyChallengeViewedUtil")
+	return type(util) == "table" and type(util.MarkCategoryViewed) == "function"
+end
+
+function Live.MarkAllViewed()
+	if not Live.CanMarkViewed() or InCombatLockdown() then return nil end
+	local t = rawget(_G, "LegacyChallengesUnviewed")
+	if type(t) ~= "table" then return 0 end
+	local cats, before = {}, Live.Unviewed()
+	for _, categoryID in pairs(t) do cats[categoryID] = true end
+	for categoryID in pairs(cats) do try(LegacyChallengeViewedUtil.MarkCategoryViewed, categoryID) end
+	return before - Live.Unviewed()
+end
+
 -- 1.3 rested XP now (nil before the game has it)
 function Live.RestedXP() return try(GetXPExhaustion) end
 

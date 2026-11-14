@@ -452,12 +452,33 @@ local function BuildTabs(page)
 		return b
 	end)
 	chal.tabRule = T.Rule(page)
+	-- 1.3: clears the "new" marks Blizzard's Legacy panel puts on earned challenges; only while there are some
+	chal.seen = T.TextButton(page, "")
+	chal.seen:SetScript("OnClick", function() ns.Core:MarkAllSeen() end)
+	chal.seen:SetScript("OnEnter", function(self)
+		self.Label:SetTextColor(T.unpack(C.ink))
+		GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
+		GameTooltip:SetText(L["Mark all as seen"], T.unpack(C.ink))
+		GameTooltip:AddLine(L["Blizzard's Legacy panel marks a challenge new when you earn it, until you open its category. This clears those marks for this character."], 0.78, 0.73, 0.65, true)
+		GameTooltip:Show()
+	end)
+	chal.seen:SetScript("OnLeave", function(self)
+		self.Label:SetTextColor(T.unpack(C.ink2))
+		GameTooltip:Hide()
+	end)
 end
 
 local function RefreshTabs(data)
 	chal.tabs:Reset()
 	local list = { { section = "", label = L["Overview"] } }
 	for _, g in ipairs(data.groups) do list[#list + 1] = { section = g.title, label = g.title, count = string.format("%d/%d", g.done, g.total) } end
+	local unviewed = Live.CanMarkViewed() and Live.Unviewed() or 0
+	chal.seen:SetShown(unviewed > 0)
+	chal.seen.Label:SetText(unviewed == 1 and L["Mark 1 new as seen"] or string.format(L["Mark %d new as seen"], unviewed))
+	chal.seen:SetWidth(chal.seen.Label:GetStringWidth() + 20)
+	chal.seen:ClearAllPoints()
+	chal.seen:SetPoint("TOPRIGHT", chal.page, "TOPRIGHT", 0, TABS_Y - (TAB_H - chal.seen:GetHeight()) / 2)
+	local reserve = unviewed > 0 and (chal.seen:GetWidth() + 16) or 0 -- the first row of tabs leaves it room
 	local x, y = 0, TABS_Y
 	local current = db().ui.section or ""
 	for _, def in ipairs(list) do
@@ -467,7 +488,7 @@ local function RefreshTabs(data)
 		b.count:SetText(def.count or "")
 		local w = b.Label:GetStringWidth() + (def.count and (b.count:GetStringWidth() + 6) or 0) + 24
 		b:SetWidth(w)
-		if x + w > W and x > 0 then x, y = 0, y - TAB_H end
+		if x + w > W - (y == TABS_Y and reserve or 0) and x > 0 then x, y = 0, y - TAB_H end
 		b:SetPoint("TOPLEFT", chal.page, "TOPLEFT", x, y)
 		b:SetActive(def.section == current)
 		x = x + w + 2

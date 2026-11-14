@@ -526,6 +526,19 @@ function Core:SessionLine(s)
 	return string.format(L["Last session on %s: %s."], tostring(s.name or "?"), table.concat(bits, ", "))
 end
 
+-- 1.3 step 7: clear Blizzard's "new" marks on earned challenges (the Challenges page button, /yl seen).
+function Core:MarkAllSeen()
+	if InCombatLockdown() then self:Print(L["Not in combat. Try again after the fight."]) return end
+	local before = Live.Unviewed()
+	local cleared = Live.MarkAllViewed()
+	if cleared == nil then self:Print(L["Blizzard's Legacy panel isn't loaded."]) return end
+	self:Evidence("markSeen", { before = before, after = Live.Unviewed() })
+	if before == 0 then self:Print(L["No new markers to clear."])
+	else self:Print(cleared == 1 and L["Cleared 1 new marker in the Legacy panel."]
+		or string.format(L["Cleared %d new markers in the Legacy panel."], cleared)) end
+	self:RequestRefresh()
+end
+
 -- 1.3: the saved build marked for raids (My builds on the Legacy Tree page), at most one.
 function Core:RaidBuild()
 	for i, b in ipairs(self.db and self.db.builds or {}) do
@@ -663,6 +676,10 @@ Core:SetScript("OnEvent", function(self, event, arg1, ...)
 		if ns.Minimap then ns.Minimap:Create() end
 		if ns.MapZone then ns.MapZone:Register() end
 		Live.HookLegacyUnlock(function() return Core.db.settings.unlockLegacy end, function(f) Core:Evidence("unlock", f) end)
+		-- 1.3: Blizzard's panel clears its "new" marks itself too; our button follows (a callback, not a hook)
+		if type(EventRegistry) == "table" and type(EventRegistry.RegisterCallback) == "function" then
+			EventRegistry:RegisterCallback("Legacy.UnviewedChallengesUpdated", function() Core:RequestRefresh() end, Core)
+		end
 	elseif event == "PLAYER_LOGOUT" then
 		self:RecordCharacter(true)
 		self:EndSession()
@@ -764,7 +781,7 @@ function Core:Capture()
 	self:Print(L["game state captured. Type /reload to write it to SavedVariables."])
 end
 
-local HELP = L["Commands:"] .. " /yl, /yl overview|challenges|roster|tree, /yl options, /yl status, /yl here, /yl report [challenge], /yl probe, /yl export, /yl capture, /yl shots, /yl reset"
+local HELP = L["Commands:"] .. " /yl, /yl overview|challenges|roster|tree, /yl options, /yl status, /yl here, /yl seen, /yl report [challenge], /yl probe, /yl export, /yl capture, /yl shots, /yl reset"
 
 SLASH_YOURLEGACY1 = "/yourlegacy"
 SLASH_YOURLEGACY2 = "/yl"
@@ -786,6 +803,8 @@ SlashCmdList.YOURLEGACY = function(msg)
 		Core:Capture()
 	elseif msg == "here" then
 		if ns.Instance then ns.Instance:Report(true) end
+	elseif msg == "seen" then
+		Core:MarkAllSeen()
 	elseif msg == "probe" then
 		if ns.Probe then ns.Probe:Run() end
 	elseif msg == "report" or msg:match("^report ") then

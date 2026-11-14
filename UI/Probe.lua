@@ -19,7 +19,7 @@ Probe.APIS = {
 	"C_EncounterJournal.GetDungeonEntrancesForMap", "C_Map.GetBestMapForUnit", "C_Map.GetMapChildrenInfo",
 	"C_Texture.GetAtlasInfo", "ToggleLegacySystemUI", "ToggleLegacyChallenges", "ShowLegacyChallenge", "hooksecurefunc",
 	"LegacyMicroButton.UpdateMicroButton", "C_ClassTalents.GetActiveConfigID", "C_Traits.GetConfigInfo", "DressUpLink", "EventRegistry.RegisterCallback",
-	"C_Sound.PlaySound", "C_ChatInfo.SendChatMessage", "IsInRaid", "IsResting", "GetXPExhaustion",
+	"C_Sound.PlaySound", "C_ChatInfo.SendChatMessage", "IsInRaid", "IsResting", "GetXPExhaustion", "LegacyChallengeViewedUtil.MarkCategoryViewed",
 }
 -- Blizzard art the addon draws (each has a fallback, so a missing one only looks worse).
 Probe.ATLASES = {
@@ -279,6 +279,9 @@ local EVIDENCE = {
 				tostring(e.ruleset), tostring(e.count), tostring(e.build), tostring(e.from or "-"), tostring(e.added), tostring(e.removed))
 		end,
 		todo = "Log in twice (the first login only saves the list)." },
+	{ key = "markSeen", title = "Mark all as seen (1.3)",
+		ok = function(e) return (e.after or 0) == 0, string.format("%s new marks before, %s after.", tostring(e.before), tostring(e.after)) end,
+		todo = "Earn a challenge, don't open its category in Blizzard's panel, then click Mark all as seen on the Challenges page." },
 	{ key = "rested", title = "Rested estimate vs the game (1.3)",
 		ok = function(e)
 			local err = (e.actual or 0) - (e.estimate or 0)
