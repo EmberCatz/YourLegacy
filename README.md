@@ -29,6 +29,9 @@ Open it with `/yl`, the minimap button, the addon compartment or a keybinding.
 - Click a challenge to open it in Blizzard's Legacy panel, or Shift-click to track it in the objective tracker. With the chat box open, Shift-click links it in chat instead.
 - Sort a section by closest to done, most points or name.
 - A cell lights up once when a challenge completes while the window is open.
+- Blizzard's Legacy panel marks a challenge new when you earn it, until you open its category. When there are marks, a button clears them all at once.
+- A chat line when a challenge is almost done (90%, or one part left), once per challenge.
+- After a game update, a chat line at login names the challenges it added or removed.
 
 ## Roster
 
@@ -42,6 +45,8 @@ Open it with `/yl`, the minimap button, the addon compartment or a keybinding.
 - Click a card for that character's gear, gold, zone, guild, item level, XP and professions, in a panel beside the window. Characters you aren't playing show their last logout.
 - Give a character a role (Main, Alt, Crafter, Bank or Ignore). Ignore hides its card.
 - Each card shows how many Legacy points that character can still spend, and when the account earns a point a chat line names the characters that can spend it.
+- Each card estimates the character's rested XP right now, counting the time since it logged out (in an inn or not, with Well Rested). Hover the card for when the pool is full.
+- At login, a chat line sums up your last session: the Legacy points and challenge parts it earned.
 - For classes you haven't started, plan the ruleset, race and two crafts and see how many Legacy points that plan is worth.
 
 ## Legacy Tree
@@ -54,6 +59,7 @@ Open it with `/yl`, the minimap button, the addon compartment or a keybinding.
 - Each perk shows what it still needs: points in its tree, or another perk at max rank.
 - Start from a preset (Leveling, Crafting, Open world, Hardcore), copy the ranks you have now, or save your own builds.
 - Share a plan as text and import someone else's from the My builds list.
+- Mark one saved build as your raid build. When you join a raid with different perks, a chat line tells you how many ranks are off.
 - The tab shows how many points you can still spend.
 - A plan that takes ranks back warns you first: undoing ranks needs a paid reset at your class trainer, and the reset clears every rank. Below level 60 it also tells you when Talented means unlearning class talents first. Hover the line for what the plan learns and takes back.
 - Perks that raise a chance say so in their tooltip.
@@ -75,7 +81,7 @@ Open it with `/yl`, the minimap button, the addon compartment or a keybinding.
 
 ## Options
 
-Grouped into Window (size from 80 to 150%, the progress bars' fill texture, lock, close in combat, animations), Chat and sound (a chat line, a guild announcement and a sound when you earn a challenge, reminders at login for unspent points and rewards to collect, the dungeon and raid help), Maps (the zone banner, the map button, the minimap button), How Legacy works (the rules Your Legacy relies on and how sure we are of each) and Data (an export of the addon's data, a report to paste into a bug report, and a check of what the addon relies on in your client).
+Grouped into Window (size from 80 to 150%, the progress bars' fill texture, lock, close in combat, animations), Chat and sound (a chat line, a guild announcement and a sound when you earn a challenge, reminders at login for unspent points, rewards to collect and your last session, lines for challenges almost done and for challenges a game update adds, the dungeon and raid help and the raid build reminder), Maps (the zone banner, the map button, the minimap button), How Legacy works (the rules Your Legacy relies on and how sure we are of each) and Data (an export of the addon's data, a report to paste into a bug report, and a check of what the addon relies on in your client).
 
 ## Good to know
 
@@ -94,6 +100,7 @@ Grouped into Window (size from 80 to 150%, the progress bars' fill texture, lock
 | `/yl options` | Open the options |
 | `/yl status` | Print your points in chat |
 | `/yl here` | Say what the dungeon, raid or zone you're in still counts toward |
+| `/yl seen` | Clear the new marks on earned challenges in Blizzard's Legacy panel |
 | `/yl report` | Build a report for a bug report (add a challenge's name for its parts) |
 | `/yl probe` | Check what Your Legacy relies on in your client |
 | `/yl export` | Show the saved data as text you can copy |
