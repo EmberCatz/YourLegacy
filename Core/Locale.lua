@@ -359,6 +359,13 @@ ns.LOCALES.deDE = {
 	["A chat line at login when a reward waits for you at Innkeeper Wiley in Ratchet."] = "Eine Chatzeile beim Einloggen, wenn bei Gastwirt Wiley in Ratschet eine Belohnung wartet.",
 	["You have 1 Legacy point to spend in the Legacy panel."] = "Du hast 1 Vermächtnispunkt, den du im Vermächtnisfenster ausgeben kannst.",
 	["You have %d Legacy points to spend in the Legacy panel."] = "Du hast %d Vermächtnispunkte, die du im Vermächtnisfenster ausgeben kannst.",
+	-- 1.3: challenges added or dropped since the last login
+	["Tell me about new challenges"] = "Über neue Herausforderungen informieren",
+	["A chat line at login when the game adds Legacy challenges or drops some."] = "Eine Chatzeile beim Einloggen, wenn das Spiel Vermächtnisherausforderungen hinzufügt oder entfernt.",
+	["New Legacy challenge since your last login: %s"] = "Neue Vermächtnisherausforderung seit deinem letzten Login: %s",
+	["%d new Legacy challenges since your last login: %s"] = "%d neue Vermächtnisherausforderungen seit deinem letzten Login: %s",
+	["The game no longer lists this Legacy challenge: %s"] = "Diese Vermächtnisherausforderung gibt es im Spiel nicht mehr: %s",
+	["The game no longer lists %d Legacy challenges: %s"] = "%d Vermächtnisherausforderungen gibt es im Spiel nicht mehr: %s",
 	["%s is waiting for you at Innkeeper Wiley in Ratchet."] = "%s wartet bei Gastwirt Wiley in Ratschet auf dich.",
 	["next reward in %d"] = "nächste Belohnung in %d",
 	["Sort"] = "Sortieren",

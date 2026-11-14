@@ -273,6 +273,12 @@ local EVIDENCE = {
 			return any, Join(bits, 20)
 		end,
 		todo = "Open the world map on Westfall or The Barrens." },
+	{ key = "challengeSet", title = "Challenge list compared at login (1.3)",
+		ok = function(e)
+			return (e.count or 0) > 0, string.format("%s: %s challenges on build %s (saved on %s); %s new, %s gone.",
+				tostring(e.ruleset), tostring(e.count), tostring(e.build), tostring(e.from or "-"), tostring(e.added), tostring(e.removed))
+		end,
+		todo = "Log in twice (the first login only saves the list)." },
 	{ key = "renown", title = "New point event",
 		ok = function(e) return (e.new or 0) > (e.old or 0), string.format("Went from %s to %s.", tostring(e.old), tostring(e.new)) end,
 		todo = "Earn a Legacy point." },

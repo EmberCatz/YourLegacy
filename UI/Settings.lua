@@ -145,6 +145,7 @@ function Builders.chat(body)
 	rows[#rows + 1] = Heading(body, L["At login"])
 	SwitchRow(body, rows, L["Remind me of unspent points"], L["A chat line at login when you have Legacy points left to spend."], "remindUnspent")
 	SwitchRow(body, rows, L["Remind me of rewards to collect"], L["A chat line at login when a reward waits for you at Innkeeper Wiley in Ratchet."], "remindRewards")
+	SwitchRow(body, rows, L["Tell me about new challenges"], L["A chat line at login when the game adds Legacy challenges or drops some."], "announceChanges")
 	rows[#rows + 1] = Heading(body, L["In dungeons and raids"])
 	SwitchRow(body, rows, L["Dungeon and raid help"], L["In a dungeon or raid, say which challenge it counts for and what's left."], "instanceHelper")
 	return rows

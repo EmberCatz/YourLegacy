@@ -22,6 +22,7 @@ local DEFAULTS = {
 	bossNames = {},  -- 1.0: [creatureID] = name, learned from ENCOUNTER_END for creatures a dungeon's credit needs
 	evidence = {},   -- 1.1: what the probe (/yl probe) learned while you played: [key] = { date, ... } (UI/Probe.lua)
 	probe = {},      -- 1.1: the last probe run, for reading from SavedVariables after /reload (devenv/probe.py)
+	knownChallenges = {}, -- 1.3: [normal | hardcore] = { build, ids = { [achievementID] = name } }, the list at the last login
 	settings = {
 		scale = 1,           -- window scale
 		minimap = true,      -- show the minimap button
@@ -42,6 +43,7 @@ local DEFAULTS = {
 		announceGuild = false, -- also post earned challenges to guild chat
 		remindUnspent = true,  -- chat line at login when Legacy points are unspent
 		remindRewards = true,  -- chat line at login when an unlocked reward waits at Innkeeper Wiley
+		announceChanges = true, -- 1.3: chat line at login when the game lists new Legacy challenges or drops some
 		instanceHelper = true, -- chat lines inside a dungeon or raid that counts toward a challenge (Core/Instance.lua)
 		mapZone = true,        -- Legacy progress of the zone open on the world map (UI/MapZone.lua)
 		mapZoneWithLegacyForever = false, -- the same while Legacy Forever is loaded (it shows zone progress too)
@@ -331,11 +333,63 @@ function Core:RewardsToCollect()
 	return out
 end
 
+-- 1.3: compares the challenges the game lists now with the list saved at the last login (per ruleset: Normal and
+-- Hardcore have their own IDs) and says which are new and which are gone. The first login only saves the list.
+-- A read with nothing, or under half of last time, is the client not having loaded its achievements yet: the old
+-- list stays and nothing is said, so a slow load never reads as challenges being removed.
+Core.CHANGES_SHOWN = 5 -- names per line, then "and N more"
+local function NameList(ids, nameOf)
+	local shown = {}
+	for i = 1, math.min(#ids, Core.CHANGES_SHOWN) do shown[i] = nameOf(ids[i]) end
+	local text = table.concat(shown, ", ")
+	if #ids > Core.CHANGES_SHOWN then text = text .. " " .. string.format(L["and %d more"], #ids - Core.CHANGES_SHOWN) end
+	return text
+end
+
+function Core:ChallengeChanges()
+	if not self.db or Live.demo then return end
+	local now, count = {}, 0
+	for _, g in ipairs(Live.Challenges().groups) do
+		for _, item in ipairs(g.items) do
+			if not now[item.id] then count = count + 1 end
+			now[item.id] = item.name or tostring(item.id)
+		end
+	end
+	local ruleset = Live.IsHardcore() and "hardcore" or "normal"
+	local known = self.db.knownChallenges[ruleset]
+	local old, before = type(known) == "table" and type(known.ids) == "table" and known.ids or nil, 0
+	for _ in pairs(old or {}) do before = before + 1 end
+	if count == 0 or count * 2 < before then return end
+	local build = Live.ClientInfo().build
+	self.db.knownChallenges[ruleset] = { build = build, ids = now }
+	local added, removed = {}, {}
+	if before > 0 then
+		for id in pairs(now) do if old[id] == nil then added[#added + 1] = id end end
+		for id in pairs(old) do if now[id] == nil then removed[#removed + 1] = id end end
+	end
+	table.sort(added)
+	table.sort(removed)
+	self:Evidence("challengeSet", { build = build, from = type(known) == "table" and known.build or nil, ruleset = ruleset,
+		count = count, compared = before > 0, added = #added, removed = #removed })
+	if not self:Setting("announceChanges") then return end
+	if #added > 0 then
+		local text = NameList(added, function(id) return Live.AchievementLink(id) or now[id] end)
+		self:Print(#added == 1 and string.format(L["New Legacy challenge since your last login: %s"], text)
+			or string.format(L["%d new Legacy challenges since your last login: %s"], #added, text))
+	end
+	if #removed > 0 then
+		local text = NameList(removed, function(id) return tostring(old[id]) end)
+		self:Print(#removed == 1 and string.format(L["The game no longer lists this Legacy challenge: %s"], text)
+			or string.format(L["The game no longer lists %d Legacy challenges: %s"], #removed, text))
+	end
+end
+
 -- Once a session, a few seconds after the first login (the trees and collections have loaded by then).
 local reminded = false
 function Core:Remind()
 	if reminded or not self.db then return end
 	reminded = true
+	self:ChallengeChanges()
 	if self:Setting("remindUnspent") then
 		local n = self:Unspent()
 		if n == 1 then self:Print(L["You have 1 Legacy point to spend in the Legacy panel."])
