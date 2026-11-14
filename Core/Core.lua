@@ -24,6 +24,7 @@ local DEFAULTS = {
 	probe = {},      -- 1.1: the last probe run, for reading from SavedVariables after /reload (devenv/probe.py)
 	almost = { said = {}, seeded = {} }, -- 1.3: said = { [achievementID] = true } got the almost-done line; seeded[ruleset] = first check done
 	rested = { inn = 1, outside = 1 }, -- 1.3: learned correction of the offline rested rate, per where the character logged out
+	session = {},    -- 1.3: the running session { char, name, points, challenges, partsStart, parts }; kept over /reload
 	knownChallenges = {}, -- 1.3: [normal | hardcore] = { build, ids = { [achievementID] = name } }, the list at the last login
 	settings = {
 		scale = 1,           -- window scale
@@ -47,6 +48,7 @@ local DEFAULTS = {
 		remindRewards = true,  -- chat line at login when an unlocked reward waits at Innkeeper Wiley
 		announceAlmost = true,  -- 1.3: chat line once when a challenge is nearly finished
 		raidBuildWarning = true, -- 1.3: chat line on joining a raid when the perks aren't the build marked for raids
+		remindSession = true,   -- 1.3: chat line at login with what the last session earned
 		announceChanges = true, -- 1.3: chat line at login when the game lists new Legacy challenges or drops some
 		instanceHelper = true, -- chat lines inside a dungeon or raid that counts toward a challenge (Core/Instance.lua)
 		mapZone = true,        -- Legacy progress of the zone open on the world map (UI/MapZone.lua)
@@ -484,6 +486,46 @@ function Core:MeasureRested()
 	self.db.rested[state] = math.max(0.25, math.min(4, (scale + seen) / 2))
 end
 
+-- 1.3 "Last session": what a session earned, said at the next login after the other reminders. Points and
+-- challenges are counted as they're earned; parts are the character's recorded parts (Live.ProgressSnapshot, saved
+-- at login and logout) at the end minus at the start. A /reload goes on with the same session.
+function Core.PartsDone(ch)
+	local n = 0
+	if type(ch) ~= "table" then return 0 end
+	for _, done in pairs(type(ch.parts) == "table" and ch.parts or {}) do
+		if type(done) == "table" then for _ in pairs(done) do n = n + 1 end end
+	end
+	for _ in pairs(type(ch.explore) == "table" and ch.explore or {}) do n = n + 1 end
+	return n
+end
+
+function Core:StartSession(initial)
+	if not self.db or Live.demo then return end
+	local key = Live.CharacterKey()
+	local s = self.db.session
+	if not initial and s.char == key then return end -- a /reload: same session
+	if initial and s.char and ((tonumber(s.points) or 0) > 0 or (tonumber(s.parts) or 0) > 0) then
+		self.lastSession = s
+	end
+	self.db.session = { char = key, name = Live.PlayerName(), points = 0, challenges = 0,
+		partsStart = Core.PartsDone(self.db.characters[key]) }
+end
+
+function Core:EndSession()
+	local s = self.db and self.db.session
+	if not s or s.char ~= Live.CharacterKey() then return end
+	s.parts = math.max(0, Core.PartsDone(self.db.characters[s.char]) - (tonumber(s.partsStart) or 0))
+end
+
+function Core:SessionLine(s)
+	local bits = {}
+	local points, parts = tonumber(s.points) or 0, tonumber(s.parts) or 0
+	if points > 0 then bits[#bits + 1] = points == 1 and L["+1 Legacy point"] or string.format(L["+%d Legacy points"], points) end
+	if parts > 0 then bits[#bits + 1] = parts == 1 and L["1 challenge part"] or string.format(L["%d challenge parts"], parts) end
+	if #bits == 0 then return nil end
+	return string.format(L["Last session on %s: %s."], tostring(s.name or "?"), table.concat(bits, ", "))
+end
+
 -- 1.3: the saved build marked for raids (My builds on the Legacy Tree page), at most one.
 function Core:RaidBuild()
 	for i, b in ipairs(self.db and self.db.builds or {}) do
@@ -539,6 +581,10 @@ function Core:Remind()
 			self:Print(string.format(L["%s is waiting for you at Innkeeper Wiley in Ratchet."], r.name or "?"))
 		end
 	end
+	-- 1.3: the lowest value of the reminders, so it comes last
+	local line = self.lastSession and self:SessionLine(self.lastSession)
+	self.lastSession = nil
+	if line and self:Setting("remindSession") then self:Print(line) end
 end
 Core.REMIND_DELAY = 8
 
@@ -619,8 +665,11 @@ Core:SetScript("OnEvent", function(self, event, arg1, ...)
 		Live.HookLegacyUnlock(function() return Core.db.settings.unlockLegacy end, function(f) Core:Evidence("unlock", f) end)
 	elseif event == "PLAYER_LOGOUT" then
 		self:RecordCharacter(true)
+		self:EndSession()
 	elseif event == "PLAYER_ENTERING_WORLD" then
 		-- arg1 = isInitialLogin: remind once after logging in, not after every loading screen
+		-- 1.3: isInitialLogin starts a new session (a /reload goes on with it; any other loading screen changes nothing)
+		if arg1 or ... then self:StartSession(arg1 and true or false) end
 		if arg1 then C_Timer.After(Core.REMIND_DELAY, function() Core:Remind() end) end
 		C_Timer.After(2, function() Core:CheckRaidBuild() end) -- logged in (or loaded) inside a raid
 		self:RequestRefresh()
@@ -642,6 +691,10 @@ Core:SetScript("OnEvent", function(self, event, arg1, ...)
 		local points = Live.try(C_Traits and C_Traits.GetTraitCurrencyForAchievement, Data.POINTS_CURRENCY_ID, arg1) or 0
 		if points > 0 and self.db then
 			self.db.earnedLog[arg1] = { date = date("%Y-%m-%d"), char = Live.CharacterKey(), ruleset = Live.IsHardcore() and "hardcore" or "normal" }
+			local s = self.db.session
+			if s.char == Live.CharacterKey() then
+				s.points, s.challenges = (tonumber(s.points) or 0) + points, (tonumber(s.challenges) or 0) + 1
+			end
 			if self:Setting("sound") then
 				for _, snd in ipairs(Data.SOUNDS) do if snd.key == self:Setting("soundKey") then Live.PlaySound(snd.id) end end
 			end

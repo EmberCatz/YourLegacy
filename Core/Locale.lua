@@ -359,6 +359,14 @@ ns.LOCALES.deDE = {
 	["A chat line at login when a reward waits for you at Innkeeper Wiley in Ratchet."] = "Eine Chatzeile beim Einloggen, wenn bei Gastwirt Wiley in Ratschet eine Belohnung wartet.",
 	["You have 1 Legacy point to spend in the Legacy panel."] = "Du hast 1 Vermächtnispunkt, den du im Vermächtnisfenster ausgeben kannst.",
 	["You have %d Legacy points to spend in the Legacy panel."] = "Du hast %d Vermächtnispunkte, die du im Vermächtnisfenster ausgeben kannst.",
+	-- 1.3: last session
+	["Last session"] = "Letzte Sitzung",
+	["A chat line at login with the Legacy points and challenge parts your last session earned."] = "Eine Chatzeile beim Einloggen mit den Vermächtnispunkten und Herausforderungsteilen deiner letzten Sitzung.",
+	["+1 Legacy point"] = "+1 Vermächtnispunkt",
+	["+%d Legacy points"] = "+%d Vermächtnispunkte",
+	["1 challenge part"] = "1 Herausforderungsteil",
+	["%d challenge parts"] = "%d Herausforderungsteile",
+	["Last session on %s: %s."] = "Letzte Sitzung mit %s: %s.",
 	-- 1.3: rested XP now
 	["%d minutes"] = "%d Minuten",
 	["1 hour"] = "1 Stunde",

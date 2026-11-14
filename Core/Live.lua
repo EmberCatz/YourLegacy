@@ -221,7 +221,8 @@ function Live.Criteria(achievementID)
 			local demo = Live.DemoRatio(achievementID)
 			if demo then done = i <= math.floor((try(GetAchievementNumCriteria, achievementID) or 0) * demo + 0.5) end
 			out[#out + 1] = { text = text, done = done and true or false, qty = qty, req = req, type = ctype, assetID = assetID,
-				charName = charName ~= "" and charName or nil, flags = flags, key = criteriaID or assetID or i }
+				charName = charName ~= "" and charName or nil, flags = flags,
+				key = (criteriaID ~= 0 and criteriaID) or (assetID ~= 0 and assetID) or i } -- 0 is no ID (1.3)
 		end
 	end
 	return out
