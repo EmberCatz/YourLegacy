@@ -359,6 +359,14 @@ ns.LOCALES.deDE = {
 	["A chat line at login when a reward waits for you at Innkeeper Wiley in Ratchet."] = "Eine Chatzeile beim Einloggen, wenn bei Gastwirt Wiley in Ratschet eine Belohnung wartet.",
 	["You have 1 Legacy point to spend in the Legacy panel."] = "Du hast 1 Vermächtnispunkt, den du im Vermächtnisfenster ausgeben kannst.",
 	["You have %d Legacy points to spend in the Legacy panel."] = "Du hast %d Vermächtnispunkte, die du im Vermächtnisfenster ausgeben kannst.",
+	-- 1.3: raid build
+	["Raid build reminder"] = "Erinnerung an den Schlachtzugsbuild",
+	["When you join a raid, a chat line if your perks aren't the build you marked for raids in My builds."] = "Beim Betreten eines Schlachtzugs eine Chatzeile, wenn deine Boni nicht dem Build entsprechen, den du unter Meine Builds für Schlachtzüge markiert hast.",
+	["In a raid: your Legacy perks differ from your raid build \"%s\" by 1 rank."] = "Im Schlachtzug: Deine Vermächtnisboni weichen von deinem Schlachtzugsbuild „%s“ um 1 Rang ab.",
+	["In a raid: your Legacy perks differ from your raid build \"%s\" by %d ranks."] = "Im Schlachtzug: Deine Vermächtnisboni weichen von deinem Schlachtzugsbuild „%s“ um %d Ränge ab.",
+	["raid build"] = "Schlachtzugsbuild",
+	["Set \"%s\" as raid build"] = "„%s“ als Schlachtzugsbuild festlegen",
+	["Clear the raid build"] = "Schlachtzugsbuild entfernen",
 	-- 1.3: almost done
 	["Say when a challenge is almost done"] = "Melden, wenn eine Herausforderung fast geschafft ist",
 	["One chat line when a challenge is 90% done or has one part left."] = "Eine Chatzeile, wenn eine Herausforderung zu 90 % erfüllt ist oder nur noch ein Teil fehlt.",

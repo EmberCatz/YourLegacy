@@ -45,6 +45,7 @@ local DEFAULTS = {
 		remindUnspent = true,  -- chat line at login when Legacy points are unspent
 		remindRewards = true,  -- chat line at login when an unlocked reward waits at Innkeeper Wiley
 		announceAlmost = true,  -- 1.3: chat line once when a challenge is nearly finished
+		raidBuildWarning = true, -- 1.3: chat line on joining a raid when the perks aren't the build marked for raids
 		announceChanges = true, -- 1.3: chat line at login when the game lists new Legacy challenges or drops some
 		instanceHelper = true, -- chat lines inside a dungeon or raid that counts toward a challenge (Core/Instance.lua)
 		mapZone = true,        -- Legacy progress of the zone open on the world map (UI/MapZone.lua)
@@ -428,6 +429,45 @@ function Core:AlmostDone()
 	end)))
 end
 
+-- 1.3: the saved build marked for raids (My builds on the Legacy Tree page), at most one.
+function Core:RaidBuild()
+	for i, b in ipairs(self.db and self.db.builds or {}) do
+		if type(b) == "table" and b.raid and type(b.perks) == "table" then return b, i end
+	end
+end
+
+function Core:SetRaidBuild(index)
+	for i, b in ipairs(self.db.builds) do b.raid = (i == index) or nil end
+end
+
+-- Ranks between the character's perks and a build: every rank one of them has and the other doesn't.
+function Core.RankDistance(ranks, perks)
+	local n = 0
+	for id, r in pairs(perks) do n = n + math.abs((ranks[tonumber(id) or id] or 0) - r) end
+	for id, r in pairs(ranks) do if perks[id] == nil and perks[tostring(id)] == nil then n = n + r end end
+	return n
+end
+
+-- On joining a raid (or logging in inside one): one chat line when the perks differ from the raid build.
+local inRaid = false
+function Core:CheckRaidBuild()
+	local now = Live.InRaid()
+	local joined = now and not inRaid
+	inRaid = now
+	if not joined or not self.db or Live.demo or not self:Setting("raidBuildWarning") then return end
+	local build = self:RaidBuild()
+	if not build then return end
+	local trees = Live.Trees()
+	if #trees == 0 then return end -- no Legacy trees yet (0 points): nothing to compare
+	local ranks = {}
+	for _, t in ipairs(trees) do for _, n in ipairs(t.nodes) do ranks[n.id] = n.rank end end
+	local diff = Core.RankDistance(ranks, build.perks)
+	self:Evidence("raidBuild", { name = build.name, diff = diff })
+	if diff == 0 then return end
+	self:Print(diff == 1 and string.format(L["In a raid: your Legacy perks differ from your raid build \"%s\" by 1 rank."], build.name or "?")
+		or string.format(L["In a raid: your Legacy perks differ from your raid build \"%s\" by %d ranks."], build.name or "?", diff))
+end
+
 -- Once a session, a few seconds after the first login (the trees and collections have loaded by then).
 local reminded = false
 function Core:Remind()
@@ -501,6 +541,7 @@ local EVENTS = {
 	"PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED",
 	"CONTENT_TRACKING_LIST_UPDATE", "TRACKED_ACHIEVEMENT_LIST_CHANGED", "ITEM_DATA_LOAD_RESULT", "PLAYER_DEAD",
 	"CONFIRM_TALENT_WIPE", -- 1.2: the trainer's reset dialog
+	"GROUP_ROSTER_UPDATE", -- 1.3: joining a raid (raid build warning)
 	"CRITERIA_EARNED", "PLAYER_EQUIPMENT_CHANGED", "PLAYER_ENTERING_WORLD", -- 0.9.1: gear changes and the gear once it has loaded reach the snapshot
 }
 for _, e in ipairs(EVENTS) do Core:RegisterEvent(e) end
@@ -525,7 +566,11 @@ Core:SetScript("OnEvent", function(self, event, arg1, ...)
 	elseif event == "PLAYER_ENTERING_WORLD" then
 		-- arg1 = isInitialLogin: remind once after logging in, not after every loading screen
 		if arg1 then C_Timer.After(Core.REMIND_DELAY, function() Core:Remind() end) end
+		C_Timer.After(2, function() Core:CheckRaidBuild() end) -- logged in (or loaded) inside a raid
 		self:RequestRefresh()
+	elseif event == "GROUP_ROSTER_UPDATE" then
+		-- fires on every roster change in a raid: only the step into one matters, and nothing on the page changes
+		C_Timer.After(1, function() Core:CheckRaidBuild() end)
 	elseif event == "CONFIRM_TALENT_WIPE" then
 		self:OnTalentWipe(arg1, ...)
 	elseif event == "CRITERIA_EARNED" then

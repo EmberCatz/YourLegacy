@@ -149,6 +149,7 @@ function Builders.chat(body)
 	SwitchRow(body, rows, L["Tell me about new challenges"], L["A chat line at login when the game adds Legacy challenges or drops some."], "announceChanges")
 	rows[#rows + 1] = Heading(body, L["In dungeons and raids"])
 	SwitchRow(body, rows, L["Dungeon and raid help"], L["In a dungeon or raid, say which challenge it counts for and what's left."], "instanceHelper")
+	SwitchRow(body, rows, L["Raid build reminder"], L["When you join a raid, a chat line if your perks aren't the build you marked for raids in My builds."], "raidBuildWarning")
 	return rows
 end
 

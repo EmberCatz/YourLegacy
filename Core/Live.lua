@@ -675,6 +675,9 @@ function Live.ClientInfo()
 	}
 end
 
+-- 1.3 raid build warning
+function Live.InRaid() return try(IsInRaid) and true or false end
+
 function Live.AddOnLoaded(name)
 	return C_AddOns and try(C_AddOns.IsAddOnLoaded, name) and true or false
 end

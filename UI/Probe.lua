@@ -19,7 +19,7 @@ Probe.APIS = {
 	"C_EncounterJournal.GetDungeonEntrancesForMap", "C_Map.GetBestMapForUnit", "C_Map.GetMapChildrenInfo",
 	"C_Texture.GetAtlasInfo", "ToggleLegacySystemUI", "ToggleLegacyChallenges", "ShowLegacyChallenge", "hooksecurefunc",
 	"LegacyMicroButton.UpdateMicroButton", "C_ClassTalents.GetActiveConfigID", "C_Traits.GetConfigInfo", "DressUpLink", "EventRegistry.RegisterCallback",
-	"C_Sound.PlaySound", "C_ChatInfo.SendChatMessage",
+	"C_Sound.PlaySound", "C_ChatInfo.SendChatMessage", "IsInRaid",
 }
 -- Blizzard art the addon draws (each has a fallback, so a missing one only looks worse).
 Probe.ATLASES = {
@@ -279,6 +279,9 @@ local EVIDENCE = {
 				tostring(e.ruleset), tostring(e.count), tostring(e.build), tostring(e.from or "-"), tostring(e.added), tostring(e.removed))
 		end,
 		todo = "Log in twice (the first login only saves the list)." },
+	{ key = "raidBuild", title = "Raid build check (1.3)",
+		ok = function(e) return true, string.format("Joined a raid; %d rank(s) from \"%s\".", e.diff or 0, tostring(e.name)) end,
+		todo = "Mark a build for raids in My builds (Legacy Tree page), then join a raid group." },
 	{ key = "almostDone", title = "Almost-done line (1.3)",
 		ok = function(e)
 			return (e.ratio or 0) > 0, string.format("Challenge %s at %s (%d%%), %s at once.", tostring(e.id), tostring(e.detail or "?"),

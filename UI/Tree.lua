@@ -405,8 +405,18 @@ end
 local function BuildOptions()
 	local out = {}
 	for i, b in ipairs(db().builds) do
-		out[#out + 1] = { i, string.format("%s  %s", b.name, T.Hex(C.muted) .. string.format(L["%d points"], PlanTotal(b.perks)) .. "|r"), deletable = true }
+		local raid = b.raid and ("  " .. T.Hex(C.head) .. L["raid build"] .. "|r") or ""
+		out[#out + 1] = { i, string.format("%s  %s%s", b.name, T.Hex(C.muted) .. string.format(L["%d points"], PlanTotal(b.perks)) .. "|r", raid), deletable = true }
 	end
+	-- 1.3: mark the build the plan matches for raids (a chat line when you join a raid without it)
+	local plan = db().plans[TreeCharacter()]
+	for _, b in ipairs(db().builds) do
+		if not b.raid and Same(plan, Copy(b.perks)) then
+			out[#out + 1] = { "raid", T.Hex(C.head) .. string.format(L["Set \"%s\" as raid build"], b.name) .. "|r" }
+			break
+		end
+	end
+	if ns.Core:RaidBuild() then out[#out + 1] = { "noraid", T.Hex(C.head) .. L["Clear the raid build"] .. "|r" } end
 	if #out == 0 then out[1] = { 0, T.Hex(C.muted) .. L["Save a plan to keep it here."] .. "|r" } end
 	-- 1.0: sharing, at the end of the list as Blizzard's loadout menu has Import
 	if ns.Tree.ShareText() then out[#out + 1] = { "share", T.Hex(C.head) .. L["Share this plan..."] .. "|r" } end
@@ -502,6 +512,15 @@ local function BuildTree(page)
 				ns.Export:ShowText(L["Share this plan"], L["The text is selected. Press Ctrl+C to copy it. Anyone with Your Legacy can paste it with Import a build on the Legacy Tree page."], text)
 			end
 			UI:Refresh() -- the list goes back to showing the build the plan matches
+			return
+		elseif index == "raid" or index == "noraid" then
+			local match
+			if index == "raid" then
+				local plan = db().plans[TreeCharacter()]
+				for i, b in ipairs(db().builds) do if not match and Same(plan, Copy(b.perks)) then match = i end end
+			end
+			ns.Core:SetRaidBuild(match)
+			UI:Refresh()
 			return
 		elseif index == "import" then
 			StaticPopup_Show("YOURLEGACY_IMPORT_BUILD")
